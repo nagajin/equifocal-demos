@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>等焦部分多様体シミュレータ — Equifocal Submanifold Demos</title>
+<style>
+  :root {
+    --bg:#0e1116; --panel:#161b22; --panel2:#1c232d; --border:#2a323d;
+    --text:#d6dde6; --muted:#8b97a6; --accent:#4ea1ff; --accent2:#ffb454;
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; padding:0; min-height:100%; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif; }
+  body { background:radial-gradient(circle at 50% 0%,#131a24 0%,#0e1116 60%); }
+  .wrap { max-width:760px; margin:0 auto; padding:56px 22px 80px; }
+  h1 { font-size:26px; margin:0 0 6px; }
+  .lead { color:var(--muted); font-size:14px; line-height:1.7; margin:0 0 6px; }
+  .lead.en { font-size:12px; }
+  .cards { display:grid; gap:14px; margin:30px 0 26px; }
+  a.card { display:block; text-decoration:none; color:inherit; background:var(--panel);
+    border:1px solid var(--border); border-radius:14px; padding:18px 20px; transition:border-color .15s, transform .15s, background .15s; }
+  a.card:hover { border-color:var(--accent); background:var(--panel2); transform:translateY(-2px); }
+  a.card h2 { margin:0 0 6px; font-size:17px; color:var(--accent); }
+  a.card .formula { font-size:14px; color:var(--accent2); margin:2px 0 8px; }
+  a.card p { margin:0; color:var(--muted); font-size:13px; line-height:1.6; }
+  .tag { display:inline-block; font-size:11px; color:var(--muted); border:1px solid var(--border);
+    border-radius:999px; padding:2px 9px; margin-right:6px; margin-top:8px; }
+  .sec { color:var(--accent); font-size:13px; font-weight:600; margin:26px 0 10px; }
+  .ext { color:var(--muted); font-size:13px; line-height:1.8; }
+  .ext a { color:var(--accent); text-decoration:none; }
+  .ext a:hover { text-decoration:underline; }
+  table.dict { width:100%; border-collapse:collapse; font-size:12.5px; color:var(--muted); margin-top:10px; }
+  table.dict th { text-align:left; color:var(--accent); font-weight:600; padding:6px 8px; border-bottom:1px solid var(--border); }
+  table.dict td { padding:6px 8px; border-bottom:1px solid rgba(42,50,61,.6); vertical-align:top; }
+  table.dict td:first-child { color:var(--text); white-space:nowrap; }
+  footer { color:var(--muted); font-size:11px; line-height:1.7; margin-top:40px;
+    border-top:1px solid var(--border); padding-top:16px; }
+  code { background:#0e1116; padding:1px 6px; border-radius:5px; color:var(--accent2); font-size:12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>等焦部分多様体シミュレータ</h1>
+  <p class="lead">対称空間内の等焦部分多様体（equifocal submanifold）と、ユークリッド空間内の等径部分多様体（isoparametric submanifold）を、平坦切断 &Sigma; 上の<b>焦超平面配置</b>として可視化するデモ集です。外部ライブラリ・ビルド・サーバを一切必要とせず、各デモは単一の HTML ファイルだけで動作します。</p>
+  <p class="lead en">Interactive, dependency-free demos for equifocal and isoparametric submanifolds — each one a single self-contained HTML file.</p>
+
+  <div class="cards">
+    <a class="card" href="section-arrangement.html">
+      <h2>切断と焦超平面配置</h2>
+      <div class="formula">&#8467;<sub>&alpha;,j</sub> = { x &isin; &Sigma; : &alpha;(x) = j&pi; } &nbsp;/&nbsp; A<sub>&xi;</sub>|<sub>𝔭<sub>&alpha;</sub></sub> = &minus;&alpha;(&xi;) cot &alpha;(x)</div>
+      <p>制限ルート系 &Delta; と重複度 m<sub>&alpha;</sub> から切断上の焦超平面配置を生成し、Weyl 軌道 W&middot;q = M &cap; &Sigma;、アルコーブ、焦半径、平行写像 F<sub>t</sub><sup>&xi;</sup> の退化と次元降下、主曲率を同時に表示します。ルート系は A<sub>1</sub>, BC<sub>1</sub>, A<sub>1</sub>&times;A<sub>1</sub>, A<sub>2</sub>, B<sub>2</sub>, BC<sub>2</sub>, G<sub>2</sub>、実例プリセット 25 件を収録。</p>
+      <span class="tag">焦超平面配置</span><span class="tag">アフィン Weyl 群</span><span class="tag">焦半径</span><span class="tag">Münzner の g&isin;{1,2,3,4,6}</span>
+    </a>
+  </div>
+
+  <div class="sec">2 つの型</div>
+  <table class="dict">
+    <tr><th>周囲空間</th><th>焦超平面</th><th>主曲率</th><th>Coxeter 群</th></tr>
+    <tr>
+      <td>ユークリッド型<br><span style="color:var(--muted)">s-表現の主軌道<br>（等径部分多様体）</span></td>
+      <td>&alpha;(x) = 0</td>
+      <td>&minus;&alpha;(&xi;) / &alpha;(x)</td>
+      <td>有限 Coxeter 群</td>
+    </tr>
+    <tr>
+      <td>コンパクト型<br><span style="color:var(--muted)">対称空間 N = G/K<br>（等焦部分多様体）</span></td>
+      <td>&alpha;(x) &isin; &pi;&#8484;</td>
+      <td>&minus;&alpha;(&xi;) cot &alpha;(x)</td>
+      <td>アフィン Weyl 群</td>
+    </tr>
+  </table>
+  <p class="ext" style="margin-top:12px">どちらの型でも、焦半径は「半直線 q + t&xi; が焦超平面に乗る t」、そこでの次元降下は「当たった超平面の m<sub>&alpha;</sub> の総和 = dim ker d(F<sub>t</sub><sup>&xi;</sup>)<sub>q</sub>」として読めます。周囲次元によらず 1 枚の絵で完結するのがこのビューの利点です。</p>
+
+  <div class="sec">参考文献</div>
+  <p class="ext">
+    C.-L. Terng, <i>Isoparametric submanifolds and their Coxeter groups</i>, J. Differential Geom. <b>21</b> (1985), 79–107.<br>
+    C.-L. Terng and G. Thorbergsson, <i>Submanifold geometry in symmetric spaces</i>, J. Differential Geom. <b>42</b> (1995), 665–718.<br>
+    E. Heintze, R. S. Palais, C.-L. Terng and G. Thorbergsson, <i>Hyperpolar actions on symmetric spaces</i>, in Geometry, Topology &amp; Physics, 1995, 214–245.<br>
+    N. Koike, <i>Complex equifocal submanifolds and infinite-dimensional anti-Kaehlerian isoparametric submanifolds</i>, Tokyo J. Math. <b>28</b> (2005), 201–247.<br>
+    H. F. Münzner, <i>Isoparametrische Hyperflächen in Sphären</i>, Math. Ann. <b>251</b> (1980), 57–71.
+  </p>
+
+  <div class="sec">関連デモ集</div>
+  <p class="ext">
+    <a href="https://nagajin.github.io/differential-geometry-demos/">微分幾何 教材デモ集</a><br>
+    <a href="https://nagajin.github.io/mcf-pages/">平均曲率流シミュレータ</a><br>
+    <a href="https://nagajin.github.io/topology-demos/">位相空間デモ集</a>
+  </p>
+
+  <footer>
+    MIT License &copy; 2026 長塚 悠仁 (Yuto Nagatsuka)<br>
+    単一 HTML ファイル・依存なし（描画は HTML Canvas 2D API）。<code>git clone</code> して開くだけで動きます。
+  </footer>
+</div>
+</body>
+</html>

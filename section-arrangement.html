@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>切断と焦超平面配置 — 等焦部分多様体シミュレータ</title>
+<style>
+  :root {
+    --bg:#0e1116; --panel:#161b22; --panel2:#1c232d; --border:#2a323d;
+    --text:#d6dde6; --muted:#8b97a6; --accent:#4ea1ff; --accent2:#ffb454; --good:#5ad19a; --bad:#ff6b6b;
+    --c0:#4ea1ff; --c1:#ffb454; --c2:#5ad19a; --c3:#c792ea;
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; padding:0; height:100%; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif; }
+  #app { display:flex; height:100vh; overflow:hidden; }
+  #stage { flex:1; position:relative; min-width:0; }
+  canvas { display:block; width:100%; height:100%; background:radial-gradient(circle at 50% 45%,#131a24 0%,#0e1116 75%); cursor:crosshair; }
+  #sidebar { width:352px; flex:0 0 352px; background:var(--panel); border-left:1px solid var(--border);
+    overflow-y:auto; padding:16px 16px 48px; font-size:13px; }
+  h1 { font-size:16px; margin:0 0 2px; }
+  .sub { color:var(--muted); font-size:11px; margin:0 0 12px; line-height:1.55; }
+  .nav { font-size:11px; margin:0 0 12px; }
+  .nav a { color:var(--accent); text-decoration:none; }
+  .nav a:hover { text-decoration:underline; }
+  .group { background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:12px; margin-bottom:12px; }
+  .group h2 { font-size:12px; margin:0 0 10px; color:var(--accent); font-weight:600; }
+  .btn-row { display:flex; gap:6px; flex-wrap:wrap; }
+  button { background:#233040; color:var(--text); border:1px solid var(--border); border-radius:8px;
+    padding:7px 10px; font-size:12px; cursor:pointer; transition:background .12s,border-color .12s; font-family:inherit; }
+  button:hover { background:#2c3c50; border-color:#3a4a5e; }
+  button.active { background:var(--accent2); color:#2a1c05; border-color:var(--accent2); font-weight:600; }
+  button.wide { flex:1; }
+  select { width:100%; background:#0e1116; color:var(--text); border:1px solid var(--border);
+    border-radius:8px; padding:7px 8px; font-size:12px; font-family:inherit; }
+  select optgroup { color:var(--muted); }
+  label.row { display:flex; align-items:center; justify-content:space-between; gap:8px; margin:9px 0; }
+  label.row span.lab { color:var(--muted); flex:0 0 auto; }
+  label.row span.val { color:var(--text); font-variant-numeric:tabular-nums; min-width:52px; text-align:right; }
+  input[type=range] { flex:1; accent-color:var(--accent); min-width:0; }
+  .check { display:flex; align-items:center; gap:8px; margin:7px 0; cursor:pointer; font-size:12px; }
+  .check input { accent-color:var(--accent); width:15px; height:15px; }
+  .ro { font-variant-numeric:tabular-nums; line-height:1.75; }
+  .ro .m { display:flex; justify-content:space-between; gap:10px; }
+  .ro .m span:first-child { color:var(--muted); }
+  .ro .m.key span { color:var(--accent2); font-weight:600; }
+  .chk { text-align:center; margin-top:8px; font-weight:600; padding:5px; border-radius:7px; font-size:11px; }
+  .chk.ok { background:rgba(90,209,154,.12); color:var(--good); }
+  .chk.no { background:rgba(255,107,107,.12); color:var(--bad); }
+  table.tbl { width:100%; border-collapse:collapse; font-size:11px; font-variant-numeric:tabular-nums; }
+  table.tbl th { color:var(--muted); font-weight:500; text-align:right; padding:3px 4px; border-bottom:1px solid var(--border); }
+  table.tbl th:first-child, table.tbl td:first-child { text-align:left; }
+  table.tbl td { padding:3px 4px; text-align:right; border-bottom:1px solid rgba(42,50,61,.5); }
+  table.tbl tr.hit td { color:var(--accent2); font-weight:600; }
+  table.tbl tr.neg td { color:var(--muted); }
+  .swatch { display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:5px; vertical-align:-1px; }
+  #status { position:absolute; top:14px; left:16px; font-size:12px; color:var(--muted);
+    background:rgba(14,17,22,.72); padding:7px 11px; border-radius:8px; border:1px solid var(--border);
+    pointer-events:none; backdrop-filter:blur(4px); line-height:1.6; }
+  #status b { color:var(--accent2); }
+  #warn { position:absolute; top:14px; right:16px; font-size:12px; color:var(--bad);
+    background:rgba(255,107,107,.1); padding:7px 11px; border-radius:8px; border:1px solid rgba(255,107,107,.35);
+    pointer-events:none; display:none; }
+  #hintbar { position:absolute; bottom:12px; left:16px; font-size:11px; color:var(--muted);
+    background:rgba(14,17,22,.6); padding:5px 9px; border-radius:7px; pointer-events:none; }
+  .hint { color:var(--muted); font-size:11px; line-height:1.6; margin-top:7px; }
+  .formula { background:#0e1116; border:1px solid var(--border); border-radius:8px; padding:8px 10px;
+    font-size:11.5px; color:var(--accent2); margin:8px 0; text-align:center; line-height:1.7; }
+  hr.sep { border:none; border-top:1px solid var(--border); margin:9px 0; }
+  code { background:#0e1116; padding:1px 5px; border-radius:4px; color:var(--accent2); font-size:11px; }
+  .note { color:var(--muted); font-size:10.5px; line-height:1.55; margin-top:6px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <div id="status"></div>
+    <div id="warn"></div>
+    <div id="hintbar">q・ξ の先端をドラッグ ／ 背景ドラッグでパン ／ ホイールでズーム</div>
+  </div>
+
+  <div id="sidebar">
+    <h1>切断と焦超平面配置</h1>
+    <p class="sub">等焦部分多様体 M ⊂ N の幾何は、平坦切断 Σ 上の<b>焦超平面配置</b>（＋重複度）に完全に符号化されます。周囲次元によらずこの 1 枚で読めるのが「設計図」ビューです。</p>
+
+    <div class="group">
+      <h2>周囲空間の型</h2>
+      <div class="btn-row">
+        <button class="wide typ active" data-t="compact">コンパクト型</button>
+        <button class="wide typ" data-t="euclid">ユークリッド型</button>
+      </div>
+      <div class="hint" id="type-hint"></div>
+    </div>
+
+    <div class="group">
+      <h2>例（プリセット）</h2>
+      <select id="preset" autocomplete="off"></select>
+      <div class="hint" id="preset-hint"></div>
+    </div>
+
+    <div class="group">
+      <h2>制限ルート系 Δ</h2>
+      <select id="rs" autocomplete="off">
+        <optgroup label="階数 r = 1">
+          <option value="A1">A₁</option>
+          <option value="BC1">BC₁（非簡約）</option>
+        </optgroup>
+        <optgroup label="階数 r = 2">
+          <option value="A1A1">A₁ × A₁</option>
+          <option value="A2" selected>A₂</option>
+          <option value="B2">B₂ (= C₂)</option>
+          <option value="BC2">BC₂（非簡約）</option>
+          <option value="G2">G₂</option>
+        </optgroup>
+      </select>
+      <div class="hint" id="rs-hint"></div>
+      <hr class="sep">
+      <div id="mults"></div>
+    </div>
+
+    <div class="group">
+      <h2>次元</h2>
+      <div class="ro">
+        <div class="m"><span>階数 r = codim M</span><span id="d-r">—</span></div>
+        <div class="m"><span>Σ<sub>α∈Δ⁺</sub> m<sub>α</sub> = dim M</span><span id="d-M">—</span></div>
+        <div class="m key"><span id="d-Nlab">dim N</span><span id="d-N">—</span></div>
+      </div>
+      <div class="chk" id="d-chk">—</div>
+      <div class="note" id="d-note"></div>
+    </div>
+
+    <div class="group">
+      <h2>平行写像 F<sub>t</sub><sup>ξ</sup>(q) = exp<sub>q</sub>(tξ)</h2>
+      <label class="row"><span class="lab">法方向 ξ の角</span><input id="xi" type="range" min="0" max="360" step="0.5" value="18" autocomplete="off"><span class="val" id="xi-v">18°</span></label>
+      <label class="row"><span class="lab">パラメータ t</span><input id="t" type="range" min="-6" max="6" step="0.002" value="0" autocomplete="off"><span class="val" id="t-v">0.000</span></label>
+      <div class="btn-row" style="margin-top:6px">
+        <button class="wide" id="play">▶ 再生</button>
+        <button class="wide" id="reset-t">t = 0</button>
+      </div>
+      <div class="ro" style="margin-top:9px">
+        <div class="m"><span>x = q + tξ</span><span id="ro-x">—</span></div>
+        <div class="m"><span>dim ker d(F<sub>t</sub><sup>ξ</sup>)<sub>q</sub></span><span id="ro-ker">—</span></div>
+        <div class="m key"><span>dim M<sub>tξ</sub></span><span id="ro-dimp">—</span></div>
+      </div>
+      <div class="hint" id="par-hint"></div>
+    </div>
+
+    <div class="group">
+      <h2>焦半径（ξ 方向）</h2>
+      <table class="tbl" id="focal-tbl"></table>
+      <label class="check"><input type="checkbox" autocomplete="off" id="opt-neg"> 負の焦半径も表示</label>
+      <div class="note">焦半径 t ⟺ 半直線 q+tξ が焦超平面に乗る。重複度 = その点で当たる超平面の m<sub>α</sub> の総和 = dim ker d(F<sub>t</sub><sup>ξ</sup>)<sub>q</sub>。</div>
+    </div>
+
+    <div class="group">
+      <h2>主曲率（x = q + tξ での A<sub>ξ</sub>）</h2>
+      <table class="tbl" id="curv-tbl"></table>
+      <div class="formula" id="curv-formula"></div>
+      <div class="note">曲率分布 T<sub>x</sub>M = ⊕<sub>α</sub> 𝔭<sub>α</sub>（dim 𝔭<sub>α</sub> = m<sub>α</sub>）上で A<sub>ξ</sub> はスカラー。符号規約は A<sub>ξ</sub>X = −∇<sub>X</sub>ξ（ξ は平行法ベクトル場）。</div>
+    </div>
+
+    <div class="group">
+      <h2>表示</h2>
+      <label class="check"><input type="checkbox" autocomplete="off" id="opt-orbit" checked> Weyl 軌道 W·q = M ∩ Σ</label>
+      <label class="check"><input type="checkbox" autocomplete="off" id="opt-alcove" checked> q を含むアルコーブ（Weyl 部屋）</label>
+      <label class="check"><input type="checkbox" autocomplete="off" id="opt-normal"> 曲率法線 n<sub>α</sub>（q 起点）</label>
+      <label class="check"><input type="checkbox" autocomplete="off" id="opt-par" checked> 平行部分多様体 W·(q+tξ)</label>
+      <label class="check"><input type="checkbox" autocomplete="off" id="opt-sphere"> 球面切断 |x| = |q|（等径超曲面）</label>
+      <label class="check"><input type="checkbox" autocomplete="off" id="opt-grid" checked> 格子・座標軸</label>
+      <label class="check"><input type="checkbox" autocomplete="off" id="opt-circle"> 切断を閉測地線（円）で表示（r=1）</label>
+    </div>
+
+    <div class="group">
+      <h2>球面内の等径超曲面</h2>
+      <div class="ro" id="sph-ro"></div>
+      <div class="note">ユークリッド型・r=2 で、原点中心の球面 S<sup>dim𝔭−1</sup> と交わると等径超曲面が得られる。相異なる主曲率の個数 g は超平面の本数、m<sub>i</sub>=m<sub>i+2</sub>（Münzner）が配置の交代性として見える。</div>
+    </div>
+
+    <div class="group">
+      <h2>解説</h2>
+      <div class="hint">
+        <b>等焦部分多様体</b>：コンパクト対称空間 N のコンパクト部分多様体 M で、(i) 法束が平坦で自明なホロノミーをもち、(ii) 各点の法指数像 Σ = exp<sub>p</sub>(T<sub>p</sub><sup>⊥</sup>M) が<b>平坦な</b>全測地的切断で、(iii) 任意の非零平行法ベクトル場 ξ に沿う焦半径が M 上一定であるもの。
+        <hr class="sep">
+        <b>平坦切断の役割</b>：一般には強 M–ヤコビ場の零点（＝ker d F<sub>t</sub><sup>ξ</sup> が測る接方向焦点）と通常の焦点は一致しない。<b>切断が平坦</b>なとき両者が一致するので、本デモは一貫して ker dF<sub>t</sub><sup>ξ</sup> で焦点を測っている。
+        <hr class="sep">
+        <b>配置の生成</b>：Σ を普遍被覆 ℝ<sup>r</sup> でとると、焦点集合は超平面族
+        <span style="color:var(--accent2)">ℓ<sub>α,j</sub> = {x : α(x) = jπ}</span>（コンパクト型）
+        ／<span style="color:var(--accent2)">{x : α(x) = 0}</span>（ユークリッド型）
+        で、その鏡映が生成する群がアフィン Weyl 群／有限 Coxeter 群 W。M ∩ Σ は正則点 q の W 軌道。
+        <hr class="sep">
+        <b>次元の落ち方</b>：t が焦半径のとき、焦部分多様体は dim M − Σ<sub>当たった α</sub> m<sub>α</sub> 次元。壁を 1 枚だけ横切るなら m<sub>α</sub> だけ落ちる。
+        <hr class="sep">
+        <b>ユークリッド型</b>は s-表現（対称空間のイソトロピー表現）の主軌道＝Terng の意味の等径部分多様体。焦超平面は原点を通り、W は有限。焦半径は主曲率の逆数 1/λ に一致する。
+      </div>
+    </div>
+
+    <div class="group">
+      <h2>参考</h2>
+      <div class="hint">
+        C.-L. Terng, <i>Isoparametric submanifolds and their Coxeter groups</i>, J. Differential Geom. 21 (1985).<br>
+        C.-L. Terng and G. Thorbergsson, <i>Submanifold geometry in symmetric spaces</i>, J. Differential Geom. 42 (1995).<br>
+        E. Heintze, R. S. Palais, C.-L. Terng, G. Thorbergsson, <i>Hyperpolar actions on symmetric spaces</i> (1995).<br>
+        N. Koike, <i>Complex equifocal submanifolds and infinite-dimensional anti-Kaehlerian isoparametric submanifolds</i>, Tokyo J. Math. 28 (2005).<br>
+        H. F. Münzner, <i>Isoparametrische Hyperflächen in Sphären</i>, Math. Ann. 251 (1980).
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+const S3=Math.sqrt(3), PI=Math.PI, EPS=1e-9;
+
+//---------------------------- 制限ルート系 ----------------------------
+// v: ルートベクトル（内積で α(x)=⟨v,x⟩）, c: 重複度クラス, l: 表示名
+const RS={
+ A1:{rank:1,name:'A₁',hint:'既約・簡約。コンパクト型では球面 Sⁿ の測地超球面族（g=1）。',
+   cls:[{k:'a',l:'α',def:3,max:16}],
+   roots:[{v:[1,0],c:'a',l:'α'}]},
+ BC1:{rank:1,name:'BC₁',hint:'非簡約。ℂPⁿ・ℍPⁿ・𝕆P² の測地超球面族（g=2、主曲率の重複度が異なる）。',
+   cls:[{k:'a',l:'α',def:4,max:20},{k:'b',l:'2α',def:1,max:20}],
+   roots:[{v:[1,0],c:'a',l:'α'},{v:[2,0],c:'b',l:'2α'}]},
+ A1A1:{rank:2,name:'A₁×A₁',hint:'可約。積型の対称空間（S^{m₁+1}×S^{m₂+1} 等）。ユークリッド型では Clifford 型 g=2。',
+   cls:[{k:'a',l:'α₁',def:1,max:14},{k:'b',l:'α₂',def:1,max:14}],
+   roots:[{v:[1,0],c:'a',l:'α₁'},{v:[0,1],c:'b',l:'α₂'}]},
+ A2:{rank:2,name:'A₂',hint:'既約・簡約・全ルート同長 ⇒ 重複度は 1 種類。m = 1,2,4,8 が SU(3)/SO(3), SU(3), SU(6)/Sp(3), E₆/F₄。',
+   cls:[{k:'a',l:'α（全ルート）',def:1,max:14}],
+   roots:[{v:[1,0],c:'a',l:'α₁'},{v:[-0.5,S3/2],c:'a',l:'α₂'},{v:[0.5,S3/2],c:'a',l:'α₁+α₂'}]},
+ B2:{rank:2,name:'B₂ (=C₂)',hint:'長短 2 種類のルート。分裂型 (1,1) が G̃₂(ℝ⁵)、群 Sp(2)=Spin(5) が (2,2)。',
+   cls:[{k:'s',l:'短根 e_i',def:1,max:14},{k:'l',l:'長根 e_i±e_j',def:1,max:14}],
+   roots:[{v:[1,0],c:'s',l:'e₁'},{v:[0,1],c:'s',l:'e₂'},{v:[1,1],c:'l',l:'e₁+e₂'},{v:[1,-1],c:'l',l:'e₁−e₂'}]},
+ BC2:{rank:2,name:'BC₂',hint:'非簡約。α と 2α が共存し、コンパクト型では超平面が半分の間隔で二重化する。複素・四元数 Grassmann 多様体。',
+   cls:[{k:'s',l:'e_i',def:2,max:20},{k:'m',l:'e_i±e_j',def:2,max:20},{k:'l',l:'2e_i',def:1,max:20}],
+   roots:[{v:[1,0],c:'s',l:'e₁'},{v:[0,1],c:'s',l:'e₂'},
+          {v:[1,1],c:'m',l:'e₁+e₂'},{v:[1,-1],c:'m',l:'e₁−e₂'},
+          {v:[2,0],c:'l',l:'2e₁'},{v:[0,2],c:'l',l:'2e₂'}]},
+ G2:{rank:2,name:'G₂',hint:'長短 2 種類、超平面は 30° 刻みで 6 本。分裂型 (1,1) が G₂/SO(4)、群 G₂ が (2,2)。',
+   cls:[{k:'s',l:'短根',def:1,max:14},{k:'l',l:'長根',def:1,max:14}],
+   roots:[{v:[1,0],c:'s',l:'α'},{v:[0.5,S3/2],c:'s',l:'2α+β'},{v:[-0.5,S3/2],c:'s',l:'α+β'},
+          {v:[1.5,S3/2],c:'l',l:'3α+β'},{v:[0,S3],c:'l',l:'3α+2β'},{v:[-1.5,S3/2],c:'l',l:'β'}]},
+};
+
+//---------------------------- プリセット ----------------------------
+// dimN は独立に知られている値。Σm_α + r と一致するかを画面でチェックする。
+const PRESETS=[
+ {t:'compact',rs:'A1',  m:{a:4},           n:'球面 S⁵ ⊂ 測地超球面族', dimN:5,  d:'S⁵ = SO(6)/SO(5)。主軌道は測地超球面 S⁴、焦部分多様体は 2 点（極）。'},
+ {t:'compact',rs:'BC1', m:{a:4,b:1},       n:'ℂP³ の測地超球面族',     dimN:6,  d:'m_α=2n−2=4, m_{2α}=1。焦部分多様体は 1 点と ℂP²（次元降下 5 と 1）。'},
+ {t:'compact',rs:'BC1', m:{a:4,b:3},       n:'ℍP² の測地超球面族',     dimN:8,  d:'m_α=4n−4=4, m_{2α}=3。'},
+ {t:'compact',rs:'BC1', m:{a:8,b:7},       n:'𝕆P² の測地超球面族',     dimN:16, d:'m_α=8, m_{2α}=7。ケイリー射影平面。'},
+ {t:'compact',rs:'A1A1',m:{a:1,b:1},       n:'S²×S²',                  dimN:4,  d:'可約。切断は 2 次元平坦トーラス、配置は直交する 2 方向の格子。'},
+ {t:'compact',rs:'A2',  m:{a:1},           n:'SU(3)/SO(3)',            dimN:5,  d:'分裂型 ⇒ 全重複度 1。主軌道は 3 次元の等焦部分多様体。'},
+ {t:'compact',rs:'A2',  m:{a:2},           n:'群 SU(3)（両側不変計量）',dimN:8,  d:'群の場合は全重複度 2。'},
+ {t:'compact',rs:'A2',  m:{a:4},           n:'SU(6)/Sp(3)',            dimN:14, d:'A₂ 型・重複度 4。'},
+ {t:'compact',rs:'A2',  m:{a:8},           n:'E₆/F₄',                  dimN:26, d:'A₂ 型・重複度 8。m = 1,2,4,8 の系列の最後。'},
+ {t:'compact',rs:'B2',  m:{s:1,l:1},       n:'G̃₂(ℝ⁵) = SO(5)/SO(3)×SO(2)', dimN:6, d:'分裂型 ⇒ 全重複度 1。'},
+ {t:'compact',rs:'B2',  m:{s:2,l:2},       n:'群 Sp(2) = Spin(5)',     dimN:10, d:'群の場合は全重複度 2。'},
+ {t:'compact',rs:'BC2', m:{s:4,m:2,l:1},   n:'G₂(ℂ⁶) = SU(6)/S(U(2)×U(4))', dimN:16, d:'m_{e_i}=2(n−2)=4, m_{e_i±e_j}=2, m_{2e_i}=1（n=4）。'},
+ {t:'compact',rs:'BC2', m:{s:8,m:4,l:3},   n:'G₂(ℍ⁶) = Sp(6)/Sp(2)×Sp(4)', dimN:32, d:'m_{e_i}=4(n−2)=8, m_{e_i±e_j}=4, m_{2e_i}=3（n=4）。'},
+ {t:'compact',rs:'G2',  m:{s:1,l:1},       n:'G₂/SO(4)',               dimN:8,  d:'分裂型 ⇒ 全重複度 1。g=6 の最小例。'},
+ {t:'compact',rs:'G2',  m:{s:2,l:2},       n:'群 G₂',                  dimN:14, d:'群の場合は全重複度 2。'},
+
+ {t:'euclid', rs:'A1A1',m:{a:1,b:1},       n:'ℝ⁴ ⊃ Clifford トーラス S¹×S¹ ⊂ S³', dimN:4, d:'g=2。球面切断は Clifford トーラス、焦点集合は 2 本の大円。'},
+ {t:'euclid', rs:'A1A1',m:{a:2,b:2},       n:'ℝ⁶ ⊃ S²×S² ⊂ S⁵',       dimN:6,  d:'g=2, m=(2,2)。'},
+ {t:'euclid', rs:'A2',  m:{a:1},           n:'ℝ⁵ ⊃ Cartan の等径超曲面 M³ ⊂ S⁴', dimN:5, d:'SU(3)/SO(3) の s-表現。g=3, m=1。Cartan の等径超曲面。'},
+ {t:'euclid', rs:'A2',  m:{a:2},           n:'ℝ⁸ ⊃ M⁶ ⊂ S⁷',          dimN:8,  d:'g=3, m=2。'},
+ {t:'euclid', rs:'A2',  m:{a:4},           n:'ℝ¹⁴ ⊃ M¹² ⊂ S¹³',       dimN:14, d:'g=3, m=4。'},
+ {t:'euclid', rs:'A2',  m:{a:8},           n:'ℝ²⁶ ⊃ M²⁴ ⊂ S²⁵',       dimN:26, d:'g=3, m=8。Cartan の分類（g=3 なら m∈{1,2,4,8}）。'},
+ {t:'euclid', rs:'B2',  m:{s:1,l:1},       n:'ℝ⁶ ⊃ M⁴ ⊂ S⁵',          dimN:6,  d:'g=4, m=(1,1)。'},
+ {t:'euclid', rs:'BC2', m:{s:4,m:2,l:1},   n:'ℝ¹⁶ ⊃ M¹⁴ ⊂ S¹⁵',       dimN:16, d:'g=4、重複度は交代して (5,2,5,2)（α と 2α が同じ直線に落ちて合流する）。'},
+ {t:'euclid', rs:'G2',  m:{s:1,l:1},       n:'ℝ⁸ ⊃ M⁶ ⊂ S⁷',          dimN:8,  d:'g=6, m=1。G₂/SO(4) の s-表現。'},
+ {t:'euclid', rs:'G2',  m:{s:2,l:2},       n:'ℝ¹⁴ ⊃ M¹² ⊂ S¹³',       dimN:14, d:'g=6, m=2。'},
+];
+
+//---------------------------- 状態 ----------------------------
+const S={
+  type:'compact', rs:'A2', m:{}, q:[1.1,0.55], xi:18*PI/180, t:0,
+  opt:{orbit:true,alcove:true,normal:false,par:true,sphere:false,grid:true,circle:false,neg:false},
+  playing:false,
+};
+function setMultsFromRS(){ S.m={}; for(const c of RS[S.rs].cls) S.m[c.k]=c.def; }
+
+//---------------------------- 座標変換 ----------------------------
+let SC=70, CX=0, CY=0, VW=800, VH=600;
+function resize(){ const r=cv.parentElement.getBoundingClientRect(), dpr=window.devicePixelRatio||1;
+  VW=r.width; VH=r.height; cv.width=Math.round(VW*dpr); cv.height=Math.round(VH*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0); if(CX===0&&CY===0){ CX=VW/2; CY=VH/2; } refresh(); }
+function w2s(x,y){ return [CX+x*SC, CY-y*SC]; }
+function s2w(sx,sy){ return [(sx-CX)/SC, -(sy-CY)/SC]; }
+function viewBox(){ const a=s2w(0,VH), b=s2w(VW,0); return {x0:a[0],y0:a[1],x1:b[0],y1:b[1]}; }
+
+//---------------------------- 線形代数 ----------------------------
+const dot=(a,b)=>a[0]*b[0]+a[1]*b[1];
+const nrm2=a=>dot(a,a);
+const add=(a,b,s)=>[a[0]+b[0]*(s===undefined?1:s), a[1]+b[1]*(s===undefined?1:s)];
+
+//---------------------------- 焦超平面の生成 ----------------------------
+// 返り値: {a:[..], c:number, mult:int, ci:色番号, labels:[..], root:[..]}
+// α(x)=⟨a,x⟩ = c が超平面。
+function classIndex(k){ return RS[S.rs].cls.findIndex(c=>c.k===k); }
+
+function curvatureRoots(){
+  // 主曲率が独立に効くルートの一覧。ユークリッド型では α と 2α が同じ主曲率を与えるので合流させる。
+  const rs=RS[S.rs], out=[];
+  if(S.type==='euclid'){
+    const map=new Map();
+    for(const r of rs.roots){
+      // 直線 ⟨v,x⟩=0 は v の向き（符号を除く）で決まる
+      let n=[r.v[0],r.v[1]]; const L=Math.hypot(n[0],n[1]); n=[n[0]/L,n[1]/L];
+      if(n[0]<-EPS||(Math.abs(n[0])<EPS&&n[1]<0)) n=[-n[0],-n[1]];
+      const key=n[0].toFixed(6)+'|'+n[1].toFixed(6);
+      if(!map.has(key)) map.set(key,{v:r.v.slice(),mult:0,labels:[],ci:classIndex(r.c)});
+      const e=map.get(key); e.mult+=S.m[r.c]; e.labels.push(r.l);
+      // 代表は最短のルートにそろえる
+      if(nrm2(r.v)<nrm2(e.v)-EPS){ e.v=r.v.slice(); e.ci=classIndex(r.c); }
+    }
+    for(const e of map.values()) out.push(e);
+  } else {
+    for(const r of rs.roots) out.push({v:r.v.slice(),mult:S.m[r.c],labels:[r.l],ci:classIndex(r.c)});
+  }
+  out.sort((a,b)=>lineAngle(a.v)-lineAngle(b.v));
+  return out;
+}
+function lineAngle(v){ let a=Math.atan2(v[1],v[0]); a=((a%PI)+PI)%PI; return a; }
+// 焦超平面の法方向の個数。BC 型のコンパクト型では α と 2α が同方向なので曲率分布の個数より少ない。
+function lineDirections(){
+  const s=new Set(); for(const r of RS[S.rs].roots) s.add(lineAngle(r.v).toFixed(6)); return s.size;
+}
+
+function planes(){
+  const raw=[], vb=viewBox();
+  const R=Math.max(Math.hypot(vb.x0,vb.y0),Math.hypot(vb.x1,vb.y1),Math.hypot(vb.x0,vb.y1),Math.hypot(vb.x1,vb.y0))+1;
+  if(S.type==='euclid'){
+    for(const e of curvatureRoots()) raw.push({a:e.v,c:0,mult:e.mult,ci:e.ci,label:e.labels.join('=')+'=0'});
+  } else {
+    for(const r of RS[S.rs].roots){
+      const L=Math.hypot(r.v[0],r.v[1]);
+      const jmax=Math.ceil(R*L/PI)+1;
+      for(let j=-jmax;j<=jmax;j++)
+        raw.push({a:r.v.slice(),c:j*PI,mult:S.m[r.c],ci:classIndex(r.c),label:r.l+'='+(j===0?'0':(j===1?'π':(j===-1?'−π':j+'π')))});
+    }
+  }
+  // 幾何的に一致する超平面（BC 型の α=jπ と 2α=2jπ など）は重複度を合算する
+  const map=new Map();
+  for(const p of raw){
+    const L=Math.hypot(p.a[0],p.a[1]); let n=[p.a[0]/L,p.a[1]/L], c=p.c/L;
+    if(n[0]<-1e-9||(Math.abs(n[0])<1e-9&&n[1]<0)){ n=[-n[0],-n[1]]; c=-c; }
+    const key=n[0].toFixed(7)+'|'+n[1].toFixed(7)+'|'+c.toFixed(7);
+    if(!map.has(key)) map.set(key,{a:p.a,c:p.c,mult:0,ci:p.ci,labels:[]});
+    const e=map.get(key); e.mult+=p.mult; e.labels.push(p.label);
+  }
+  const out=[];
+  for(const e of map.values()) out.push({a:e.a,c:e.c,mult:e.mult,ci:e.ci,label:e.labels.join(' , ')});
+  return out;
+}
+
+//---------------------------- Weyl 軌道 ----------------------------
+function reflect(x,p){ const s=(dot(p.a,x)-p.c)/nrm2(p.a); return [x[0]-2*s*p.a[0], x[1]-2*s*p.a[1]]; }
+function orbit(x0,P,cap){
+  cap=cap||1200;
+  const vb=viewBox(), mx=(vb.x1-vb.x0)*0.25, my=(vb.y1-vb.y0)*0.25;
+  const inView=p=>p[0]>vb.x0-mx&&p[0]<vb.x1+mx&&p[1]>vb.y0-my&&p[1]<vb.y1+my;
+  const key=p=>Math.round(p[0]*1e5)+'|'+Math.round(p[1]*1e5);
+  const seen=new Map(), queue=[x0]; seen.set(key(x0),x0);
+  while(queue.length&&seen.size<cap){
+    const x=queue.shift();
+    for(const p of P){
+      const y=reflect(x,p); if(!inView(y)) continue;
+      const k=key(y); if(seen.has(k)) continue;
+      seen.set(k,y); queue.push(y);
+    }
+  }
+  return [...seen.values()];
+}
+function weylOrder(){ // 線形部分の Weyl 群の位数（正則点の軌道サイズ）
+  const lin=curvatureRoots().map(e=>({a:e.v,c:0}));
+  const g=[0.3178231,0.1907712]; // 一般の位置
+  return orbit(g,lin,400).length;
+}
+
+//---------------------------- アルコーブ（Weyl 部屋） ----------------------------
+function alcove(q,P){
+  const vb=viewBox(), M=Math.max(vb.x1-vb.x0,vb.y1-vb.y0)*2;
+  let poly=[[vb.x0-M,vb.y0-M],[vb.x1+M,vb.y0-M],[vb.x1+M,vb.y1+M],[vb.x0-M,vb.y1+M]];
+  for(const p of P){
+    const sgn=Math.sign(dot(p.a,q)-p.c); if(sgn===0) return null;
+    const f=x=>sgn*(dot(p.a,x)-p.c);
+    const out=[];
+    for(let i=0;i<poly.length;i++){
+      const A=poly[i], B=poly[(i+1)%poly.length], fa=f(A), fb=f(B);
+      if(fa>=0) out.push(A);
+      if((fa>0&&fb<0)||(fa<0&&fb>0)){ const s=fa/(fa-fb); out.push([A[0]+(B[0]-A[0])*s, A[1]+(B[1]-A[1])*s]); }
+    }
+    poly=out; if(poly.length<3) return null;
+  }
+  // 壁が交わる頂点では Sutherland–Hodgman が重複頂点を作るので取り除く
+  const ded=[];
+  for(const p of poly){ const q=ded[ded.length-1];
+    if(!q||Math.hypot(p[0]-q[0],p[1]-q[1])>1e-9) ded.push(p); }
+  if(ded.length>1){ const a=ded[0], b=ded[ded.length-1];
+    if(Math.hypot(a[0]-b[0],a[1]-b[1])<1e-9) ded.pop(); }
+  return ded.length>=3?ded:null;
+}
+
+//---------------------------- 焦半径 ----------------------------
+function focalRadii(q,xi,P){
+  const raw=[];
+  for(const p of P){ const den=dot(p.a,xi); if(Math.abs(den)<1e-12) continue;
+    raw.push({t:(p.c-dot(p.a,q))/den, mult:p.mult, label:p.label, ci:p.ci}); }
+  raw.sort((a,b)=>a.t-b.t);
+  const out=[];
+  for(const r of raw){
+    const last=out[out.length-1];
+    if(last&&Math.abs(last.t-r.t)<1e-7){ last.mult+=r.mult; last.labels.push(r.label); }
+    else out.push({t:r.t, mult:r.mult, labels:[r.label], ci:r.ci});
+  }
+  return out;
+}
+
+//---------------------------- 主曲率 ----------------------------
+function principalCurvatures(x,xi){
+  const out=[];
+  for(const e of curvatureRoots()){
+    const ax=dot(e.v,x), axi=dot(e.v,xi);
+    let lam;
+    if(S.type==='euclid') lam = Math.abs(ax)<1e-12 ? Infinity*Math.sign(-axi||1) : -axi/ax;
+    else { const s=Math.sin(ax); lam = Math.abs(s)<1e-12 ? Infinity*Math.sign(-axi||1) : -axi*Math.cos(ax)/s; }
+    out.push({label:e.labels.join(', '), mult:e.mult, lam, ci:e.ci, ax});
+  }
+  return out;
+}
+
+//---------------------------- 描画 ----------------------------
+const CC=['#4ea1ff','#ffb454','#5ad19a','#c792ea'];
+function draw(){
+  ctx.clearRect(0,0,VW,VH);
+  const rank=RS[S.rs].rank;
+  const P=planes(), xi=[Math.cos(S.xi),Math.sin(S.xi)];
+  const x=[S.q[0]+S.t*xi[0], S.q[1]+S.t*xi[1]];
+
+  if(S.opt.grid) drawGrid();
+  if(S.opt.alcove){ const poly=alcove(S.q,P); if(poly&&poly.length>2){
+    ctx.beginPath(); poly.forEach((p,i)=>{ const s=w2s(p[0],p[1]); i?ctx.lineTo(s[0],s[1]):ctx.moveTo(s[0],s[1]); }); ctx.closePath();
+    ctx.fillStyle='rgba(78,161,255,0.09)'; ctx.fill();
+    ctx.strokeStyle='rgba(78,161,255,0.28)'; ctx.lineWidth=1; ctx.stroke(); } }
+
+  if(S.opt.sphere&&S.type==='euclid'&&rank===2) drawSphereSection();
+  drawPlanes(P,rank);
+
+  if(S.opt.orbit){ for(const p of orbit(S.q,P)) dot2(p,3.6,'rgba(214,221,230,0.85)'); }
+  if(S.opt.par&&Math.abs(S.t)>1e-9){ for(const p of orbit(x,P)) dot2(p,3.2,'rgba(255,180,84,0.75)'); }
+
+  drawRay(S.q,xi,P);
+  if(S.opt.normal) drawCurvatureNormals();
+  if(S.opt.circle&&rank===1) drawCircleView(P);
+
+  // q と ξ ハンドル
+  const sq=w2s(S.q[0],S.q[1]);
+  const st=w2s(S.q[0]+xi[0]*handleLen(), S.q[1]+xi[1]*handleLen());
+  ctx.strokeStyle='rgba(90,209,154,0.9)'; ctx.lineWidth=2; arrow(sq[0],sq[1],st[0],st[1],7);
+  ctx.fillStyle='#5ad19a'; ctx.beginPath(); ctx.arc(st[0],st[1],5,0,7); ctx.fill();
+  label(st[0]+9,st[1]-6,'ξ','#5ad19a');
+  ctx.fillStyle='#ffffff'; ctx.strokeStyle='#0e1116'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.arc(sq[0],sq[1],6.5,0,7); ctx.fill(); ctx.stroke();
+  label(sq[0]+10,sq[1]+14,'q','#ffffff');
+  if(Math.abs(S.t)>1e-9){ const sx=w2s(x[0],x[1]);
+    ctx.fillStyle='#ffb454'; ctx.beginPath(); ctx.arc(sx[0],sx[1],5.5,0,7); ctx.fill();
+    label(sx[0]+10,sx[1]+14,'q+tξ','#ffb454'); }
+}
+function handleLen(){ return 90/SC; }
+function dot2(p,r,col){ const s=w2s(p[0],p[1]); ctx.fillStyle=col; ctx.beginPath(); ctx.arc(s[0],s[1],r,0,7); ctx.fill(); }
+function label(x,y,txt,col){ ctx.fillStyle=col; ctx.font='12px -apple-system,sans-serif'; ctx.fillText(txt,x,y); }
+function arrow(x1,y1,x2,y2,ah){ ah=ah||6; const dx=x2-x1,dy=y2-y1,L=Math.hypot(dx,dy); if(L<1) return;
+  const ux=dx/L,uy=dy/L;
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x2,y2); ctx.lineTo(x2-ux*ah-uy*ah*0.6, y2-uy*ah+ux*ah*0.6);
+  ctx.lineTo(x2-ux*ah+uy*ah*0.6, y2-uy*ah-ux*ah*0.6); ctx.closePath();
+  ctx.fillStyle=ctx.strokeStyle; ctx.fill(); }
+
+function drawGrid(){
+  const vb=viewBox(); const step=S.type==='compact'?PI/2:1;
+  ctx.strokeStyle='rgba(42,50,61,0.55)'; ctx.lineWidth=1;
+  for(let i=Math.floor(vb.x0/step);i<=Math.ceil(vb.x1/step);i++){ const s=w2s(i*step,0);
+    ctx.beginPath(); ctx.moveTo(s[0],0); ctx.lineTo(s[0],VH); ctx.stroke(); }
+  for(let i=Math.floor(vb.y0/step);i<=Math.ceil(vb.y1/step);i++){ const s=w2s(0,i*step);
+    ctx.beginPath(); ctx.moveTo(0,s[1]); ctx.lineTo(VW,s[1]); ctx.stroke(); }
+  ctx.strokeStyle='rgba(139,151,166,0.5)'; const o=w2s(0,0);
+  ctx.beginPath(); ctx.moveTo(0,o[1]); ctx.lineTo(VW,o[1]); ctx.moveTo(o[0],0); ctx.lineTo(o[0],VH); ctx.stroke();
+}
+
+function drawPlanes(P,rank){
+  const vb=viewBox(), M=Math.hypot(vb.x1-vb.x0,vb.y1-vb.y0)*1.2;
+  for(const p of P){
+    const L=Math.hypot(p.a[0],p.a[1]), n=[p.a[0]/L,p.a[1]/L], c=p.c/L;
+    const base=[n[0]*c,n[1]*c], d=[-n[1],n[0]];
+    const col=CC[p.ci%CC.length];
+    if(rank===1){
+      // 焦超平面は Σ = ℝ 上の「点」。短い縦棒で表す。
+      const s=w2s(base[0],0);
+      ctx.strokeStyle=col; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(s[0],VH/2-26); ctx.lineTo(s[0],VH/2+26); ctx.stroke();
+      ctx.fillStyle=col; ctx.font='10px -apple-system,sans-serif'; ctx.textAlign='center';
+      ctx.fillText('m='+p.mult, s[0], VH/2-32); ctx.textAlign='left';
+    } else {
+      const A=w2s(base[0]-d[0]*M, base[1]-d[1]*M), B=w2s(base[0]+d[0]*M, base[1]+d[1]*M);
+      ctx.strokeStyle=col; ctx.globalAlpha=(Math.abs(p.c)<EPS?0.95:0.6); ctx.lineWidth=(Math.abs(p.c)<EPS?1.8:1.3);
+      ctx.beginPath(); ctx.moveTo(A[0],A[1]); ctx.lineTo(B[0],B[1]); ctx.stroke(); ctx.globalAlpha=1;
+    }
+  }
+  if(rank===1){ ctx.strokeStyle='rgba(139,151,166,0.6)'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(0,VH/2); ctx.lineTo(VW,VH/2); ctx.stroke();
+    label(12,VH/2-10,'Σ ≅ ℝ','rgba(139,151,166,0.9)'); }
+}
+
+function drawRay(q,xi,P){
+  const F=focalRadii(q,xi,P), vb=viewBox();
+  const M=Math.hypot(vb.x1-vb.x0,vb.y1-vb.y0)*1.2;
+  const A=w2s(q[0]-xi[0]*M,q[1]-xi[1]*M), B=w2s(q[0]+xi[0]*M,q[1]+xi[1]*M);
+  ctx.save(); ctx.setLineDash([5,5]); ctx.strokeStyle='rgba(90,209,154,0.35)'; ctx.lineWidth=1.2;
+  ctx.beginPath(); ctx.moveTo(A[0],A[1]); ctx.lineTo(B[0],B[1]); ctx.stroke(); ctx.restore();
+  for(const f of F){
+    if(f.t<0&&!S.opt.neg) continue;
+    const p=[q[0]+f.t*xi[0], q[1]+f.t*xi[1]], s=w2s(p[0],p[1]);
+    ctx.strokeStyle=f.t<0?'rgba(255,107,107,0.7)':'#ff6b6b'; ctx.lineWidth=1.8;
+    ctx.beginPath(); ctx.arc(s[0],s[1],5.5,0,7); ctx.stroke();
+    ctx.fillStyle='rgba(255,107,107,0.9)'; ctx.font='10px -apple-system,sans-serif';
+    ctx.fillText('m'+f.mult, s[0]+8, s[1]-7);
+  }
+}
+
+function drawCurvatureNormals(){
+  // ユークリッド型: n_α = −α♯/α(q)（|n_α| = 1/dist(q,ℓ_α)、ℓ_α ⊥ n_α）
+  const cr=curvatureRoots();
+  const sq=w2s(S.q[0],S.q[1]);
+  for(const e of cr){
+    const ax=dot(e.v,S.q); if(Math.abs(ax)<1e-9) continue;
+    let n;
+    if(S.type==='euclid') n=[-e.v[0]/ax, -e.v[1]/ax];
+    else { const c=Math.cos(ax)/Math.sin(ax); n=[-e.v[0]*c, -e.v[1]*c]; }
+    const s=w2s(S.q[0]+n[0], S.q[1]+n[1]);
+    ctx.strokeStyle=CC[e.ci%CC.length]; ctx.globalAlpha=0.75; ctx.lineWidth=1.4;
+    arrow(sq[0],sq[1],s[0],s[1],5); ctx.globalAlpha=1;
+  }
+}
+
+function drawSphereSection(){
+  const R=Math.hypot(S.q[0],S.q[1]); if(R<1e-6) return;
+  const o=w2s(0,0);
+  ctx.strokeStyle='rgba(199,146,234,0.65)'; ctx.lineWidth=1.6; ctx.setLineDash([3,4]);
+  ctx.beginPath(); ctx.arc(o[0],o[1],R*SC,0,7); ctx.stroke(); ctx.setLineDash([]);
+  // 大円上の焦点（各直線との交点）
+  for(const e of curvatureRoots()){
+    const L=Math.hypot(e.v[0],e.v[1]), d=[-e.v[1]/L,e.v[0]/L];
+    for(const s of [1,-1]){ const p=[d[0]*R*s,d[1]*R*s]; dot2(p,4.2,'rgba(255,107,107,0.9)'); }
+  }
+}
+
+function drawCircleView(P){
+  // r=1 のとき、切断を長さ 2π の閉測地線（円）として描く
+  const cx=VW-140, cy=VH-140, R=95;
+  ctx.strokeStyle='rgba(139,151,166,0.7)'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.arc(cx,cy,R,0,7); ctx.stroke();
+  const ang=x=>x; // 長さ 2π に正規化（|α|=1 のとき α(x)=x）
+  for(const p of P){ const L=Math.hypot(p.a[0],p.a[1]), pos=p.c/L, a=ang(pos);
+    const s=[cx+R*Math.cos(a), cy-R*Math.sin(a)];
+    ctx.strokeStyle=CC[p.ci%CC.length]; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(s[0],s[1],4,0,7); ctx.stroke(); }
+  for(const p of orbit(S.q,P)){ const a=ang(p[0]); const s=[cx+R*Math.cos(a), cy-R*Math.sin(a)];
+    ctx.fillStyle='rgba(214,221,230,0.9)'; ctx.beginPath(); ctx.arc(s[0],s[1],3.2,0,7); ctx.fill(); }
+  label(cx-R,cy+R+18,'切断（閉測地線，長さ 2π）','rgba(139,151,166,0.9)');
+}
+
+//---------------------------- 読み出し ----------------------------
+function fmt(v,n){ n=(n===undefined)?3:n; return (Math.abs(v)<5e-4?0:v).toFixed(n); }
+function fmtPi(v){
+  if(Math.abs(v)<1e-9) return '0';
+  for(const d of [1,2,3,4,6]){ const p=v*d/PI;
+    if(Math.abs(p-Math.round(p))<1e-9){ const r=Math.round(p), a=Math.abs(r);
+      return (r<0?'−':'')+(a===1?'π':a+'π')+(d===1?'':'/'+d); } }
+  return v.toFixed(3);
+}
+// r=1 では切断が 1 次元なので、単位法ベクトル ξ は ±1 に限る。
+function normalizeXi(){
+  if(RS[S.rs].rank!==1) return;
+  S.xi = (Math.cos(S.xi)>=0) ? 0 : PI;
+  const deg=Math.round(S.xi*180/PI);
+  const el=document.getElementById('xi'); if(el){ el.value=deg; document.getElementById('xi-v').textContent=deg+'°'; }
+}
+
+function update(){
+  const rs=RS[S.rs], rank=rs.rank, cr=curvatureRoots();
+  const P=planes(), xi=[Math.cos(S.xi),Math.sin(S.xi)];
+  const x=[S.q[0]+S.t*xi[0], S.q[1]+S.t*xi[1]];
+  const id=s=>document.getElementById(s);
+
+  // 次元
+  let dimM=0; for(const r of rs.roots) dimM+=S.m[r.c];
+  const dimN=dimM+rank;
+  id('d-r').textContent=rank;
+  id('d-M').textContent=dimM;
+  id('d-Nlab').innerHTML = S.type==='euclid' ? 'dim 𝔭 = dim M + r' : 'dim N = dim M + r';
+  id('d-N').textContent=dimN;
+  const cur=matchPreset();
+  const chk=id('d-chk');
+  if(cur!=null&&PRESETS[cur].dimN!==undefined){
+    const ok=PRESETS[cur].dimN===dimN;
+    chk.className='chk '+(ok?'ok':'no');
+    chk.textContent=(ok?'✓ ':'✗ ')+PRESETS[cur].n+' の既知次元 '+PRESETS[cur].dimN+' と一致'+(ok?'':'しない');
+  } else { chk.className='chk ok'; chk.textContent='Σ m_α + r = '+dimN+'（自由パラメータ）'; }
+  id('d-note').textContent = S.type==='euclid'
+    ? '主軌道 M = K·q ⊂ 𝔭 は余次元 r の等径部分多様体。'
+    : '主軌道 M ⊂ N は余次元 r の等焦部分多様体。';
+
+  // 平行写像
+  const F=focalRadii(S.q,xi,P);
+  let ker=0, hit=null;
+  for(const f of F) if(Math.abs(f.t-S.t)<3e-3){ ker+=f.mult; hit=f; }
+  id('ro-x').textContent='('+fmt(x[0])+', '+(rank===1?'—':fmt(x[1]))+')';
+  id('ro-ker').textContent=ker;
+  id('ro-dimp').textContent=(dimM-ker)+(ker>0?' （焦部分多様体）':'');
+  id('par-hint').innerHTML = ker>0
+    ? '<span style="color:var(--bad)">t = '+fmt(S.t)+' は焦半径。'+hit.labels.join(', ')+' に乗り、次元が '+ker+' 落ちる。</span>'
+    : 'M<sub>tξ</sub> は M と微分同相な平行部分多様体（次元は不変）。';
+
+  // 焦半径表
+  let h='<tr><th>t</th><th>超平面</th><th>m</th></tr>';
+  const tmax=parseFloat(id('t').max);
+  const shown=F.filter(f=>(S.opt.neg||f.t>=-1e-9)&&Math.abs(f.t)<=tmax+1e-9).slice(0,14);
+  for(const f of shown){
+    const cls=(Math.abs(f.t-S.t)<3e-3)?'hit':(f.t<0?'neg':'');
+    h+='<tr class="'+cls+'" data-t="'+f.t+'"><td>'+fmt(f.t)+'</td><td>'+f.labels.slice(0,2).join(', ')+(f.labels.length>2?' …':'')+'</td><td>'+f.mult+'</td></tr>';
+  }
+  if(!shown.length) h+='<tr><td colspan="3" style="color:var(--muted)">この方向に焦点なし</td></tr>';
+  id('focal-tbl').innerHTML=h;
+
+  // 主曲率表
+  const C=principalCurvatures(x,xi);
+  let h2='<tr><th>曲率分布</th><th>m<sub>α</sub></th><th>λ</th>'+(S.type==='euclid'?'<th>1/λ</th>':'')+'</tr>';
+  for(const c of C){
+    const inf=!isFinite(c.lam);
+    h2+='<tr><td><span class="swatch" style="background:'+CC[c.ci%CC.length]+'"></span>'+c.label+'</td><td>'+c.mult+'</td>'
+      +'<td'+(inf?' style="color:var(--bad)"':'')+'>'+(inf?'∞':fmt(c.lam))+'</td>'
+      +(S.type==='euclid'?('<td>'+(inf?'0':fmt(1/c.lam))+'</td>'):'')+'</tr>';
+  }
+  id('curv-tbl').innerHTML=h2;
+  id('curv-formula').innerHTML = S.type==='euclid'
+    ? 'A<sub>ξ</sub>|<sub>𝔭<sub>α</sub></sub> = −α(ξ)/α(x) &nbsp;·&nbsp; id &nbsp;&nbsp;（焦半径 = 1/λ）'
+    : 'A<sub>ξ</sub>|<sub>𝔭<sub>α</sub></sub> = −α(ξ)·cot α(x) &nbsp;·&nbsp; id';
+
+  // 球面切断
+  const g=cr.length;
+  let h3='';
+  if(S.type==='euclid'&&rank===2){
+    const ms=cr.map(c=>c.mult);
+    const alt=ms.every((v,i)=>v===ms[(i+2)%ms.length]);
+    h3='<div class="m"><span>相異なる主曲率の個数 g</span><span>'+g+'</span></div>'
+      +'<div class="m"><span>重複度 (m₁,…,m_g)</span><span>('+ms.join(', ')+')</span></div>'
+      +'<div class="m"><span>M ∩ S<sup>'+(dimN-1)+'</sup></span><span>'+dimM+' 次元の等径超曲面</span></div>'
+      +'<div class="m"><span>焦点の間隔</span><span>π/'+g+'</span></div>'
+      +'<div class="chk '+(alt?'ok':'no')+'">'+(alt?'✓ m_i = m_{i+2}（Münzner）':'✗ m_i = m_{i+2} を満たさない')+'</div>';
+  } else if(rank===1&&S.type==='compact'){
+    const gg=(S.rs==='BC1'?2:1);
+    h3='<div class="m"><span>切断の焦点の間隔</span><span>'+fmtPi(PI/gg)+'</span></div>'
+      +'<div class="m"><span>相異なる主曲率 g</span><span>'+gg+'</span></div>'
+      +'<div class="m"><span>閉測地線上の焦点の個数</span><span>'+(2*gg)+'</span></div>'
+      +'<div class="hint">r=1 は M が超曲面の場合。長さ 2π の閉測地線上に 2g 個の焦点が等間隔に並ぶ。</div>';
+  } else {
+    h3='<div class="hint">ユークリッド型・r=2 に切り替えると、球面内の等径超曲面としての読み方を表示します。</div>';
+  }
+  id('sph-ro').innerHTML=h3;
+
+  // ステータス
+  const wo=weylOrder(), nd=lineDirections();
+  id('status').innerHTML='<b>'+rs.name+'</b> ／ '+(S.type==='euclid'?'ユークリッド型（有限 Coxeter 群）':'コンパクト型（アフィン Weyl 群）')
+    +'<br>曲率分布 <b>'+g+'</b> 個　超平面の法方向 <b>'+nd+'</b> 本　線形 Weyl 群 |W| = <b>'+wo+'</b>'
+    +'<br>dim M = <b>'+dimM+'</b>　'+(S.type==='euclid'?'dim 𝔭':'dim N')+' = <b>'+dimN+'</b>';
+
+  // 特異点警告
+  let onWall=null;
+  for(const p of P) if(Math.abs(dot(p.a,S.q)-p.c)<1e-3*Math.hypot(p.a[0],p.a[1])) onWall=p;
+  const w=id('warn');
+  if(onWall){ w.style.display='block'; w.textContent='q が壁 '+onWall.label+' 上：特異軌道（正則点にしてください）'; }
+  else w.style.display='none';
+
+  id('rs-hint').textContent=rs.hint;
+  id('type-hint').innerHTML = S.type==='euclid'
+    ? 's-表現の主軌道 M = K·q ⊂ 𝔭 ≅ ℝ<sup>dim𝔭</sup>（Terng の等径部分多様体）。焦超平面は原点を通り、W は<b>有限</b> Coxeter 群。'
+    : 'コンパクト対称空間 N = G/K の等焦部分多様体。焦超平面は α(x) ∈ πℤ で<b>アフィン</b>、W はアフィン Weyl 群。';
+}
+
+function matchPreset(){
+  for(let i=0;i<PRESETS.length;i++){ const p=PRESETS[i];
+    if(p.t!==S.type||p.rs!==S.rs) continue;
+    let ok=true; for(const k in p.m) if(p.m[k]!==S.m[k]) ok=false;
+    if(ok) return i; }
+  return null;
+}
+
+//---------------------------- 重複度 UI ----------------------------
+function buildMults(){
+  const box=document.getElementById('mults'); box.innerHTML='';
+  RS[S.rs].cls.forEach((c,i)=>{
+    const lab=document.createElement('label'); lab.className='row';
+    lab.innerHTML='<span class="lab"><span class="swatch" style="background:'+CC[i%CC.length]+'"></span>m<sub>'+c.l+'</sub></span>'
+      +'<input type="range" autocomplete="off" min="1" max="'+c.max+'" step="1" value="'+S.m[c.k]+'"><span class="val">'+S.m[c.k]+'</span>';
+    const inp=lab.querySelector('input'), val=lab.querySelector('.val');
+    inp.addEventListener('input',()=>{ S.m[c.k]=parseInt(inp.value,10); val.textContent=inp.value; syncPreset(); refresh(); });
+    box.appendChild(lab);
+  });
+}
+
+function buildPresets(){
+  const sel=document.getElementById('preset'); sel.innerHTML='';
+  const gc=document.createElement('optgroup'); gc.label='コンパクト型（等焦部分多様体）';
+  const ge=document.createElement('optgroup'); ge.label='ユークリッド型（等径部分多様体）';
+  PRESETS.forEach((p,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=p.n;
+    (p.t==='compact'?gc:ge).appendChild(o); });
+  sel.appendChild(gc); sel.appendChild(ge);
+}
+function syncPreset(){ const i=matchPreset(); const sel=document.getElementById('preset');
+  if(i!=null){ sel.value=i; document.getElementById('preset-hint').textContent=PRESETS[i].d; }
+  else document.getElementById('preset-hint').textContent='（プリセットから外れた設定）';
+}
+function applyPreset(i){ const p=PRESETS[i];
+  S.type=p.t; S.rs=p.rs; setMultsFromRS(); for(const k in p.m) S.m[k]=p.m[k];
+  document.getElementById('rs').value=S.rs;
+  document.querySelectorAll('.typ').forEach(b=>b.classList.toggle('active',b.dataset.t===S.type));
+  buildMults(); resetView(); document.getElementById('preset-hint').textContent=p.d; refresh();
+}
+
+// アルコーブ（Weyl 部屋）の内部に既定の q を置く。壁の近くだと軌道が退化して見えるため。
+function defaultQ(){
+  const rank=RS[S.rs].rank;
+  if(rank===1) return S.type==='compact' ? [PI/(S.rs==='BC1'?4:2), 0] : [1.5, 0];
+  const seed=[0.6180339,0.3141592];
+  const poly=alcove(seed,planes());
+  if(!poly||poly.length<3) return seed;
+  let cx=0,cy=0; for(const p of poly){ cx+=p[0]; cy+=p[1]; }
+  cx/=poly.length; cy/=poly.length;
+  if(S.type==='euclid'){ const L=Math.hypot(cx,cy)||1; return [cx/L*1.7, cy/L*1.7]; }
+  return [cx,cy];
+}
+function resetView(){
+  const rank=RS[S.rs].rank;
+  SC = S.type==='compact' ? (rank===1?46:52) : (rank===1?90:96);
+  CX=VW/2; CY=VH/2;
+  S.q=defaultQ(); S.t=0; normalizeXi();
+  const ts=document.getElementById('t'); ts.value=0; document.getElementById('t-v').textContent='0.000';
+  const span=S.type==='compact'?7:5; ts.min=-span; ts.max=span;
+}
+function refresh(){ draw(); update(); }
+
+//---------------------------- 操作 ----------------------------
+let drag=null, panStart=null;
+function pick(mx,my){
+  const xi=[Math.cos(S.xi),Math.sin(S.xi)];
+  const sq=w2s(S.q[0],S.q[1]);
+  const st=w2s(S.q[0]+xi[0]*handleLen(), S.q[1]+xi[1]*handleLen());
+  if(Math.hypot(mx-st[0],my-st[1])<13) return 'xi';
+  if(Math.hypot(mx-sq[0],my-sq[1])<13) return 'q';
+  return null;
+}
+cv.addEventListener('pointerdown',e=>{ const r=cv.getBoundingClientRect(), mx=e.clientX-r.left, my=e.clientY-r.top;
+  drag=pick(mx,my); if(!drag){ panStart=[mx,my,CX,CY]; cv.style.cursor='grabbing'; } cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointermove',e=>{ const r=cv.getBoundingClientRect(), mx=e.clientX-r.left, my=e.clientY-r.top;
+  if(drag==='q'){ const w=s2w(mx,my); S.q=[w[0], RS[S.rs].rank===1?0:w[1]]; refresh(); }
+  else if(drag==='xi'){ const w=s2w(mx,my); const d=[w[0]-S.q[0], w[1]-S.q[1]];
+    if(RS[S.rs].rank===1){ S.xi=d[0]>=0?0:PI; } else if(Math.hypot(d[0],d[1])>1e-6) S.xi=Math.atan2(d[1],d[0]);
+    const deg=(S.xi*180/PI+360)%360;
+    document.getElementById('xi').value=deg.toFixed(1); document.getElementById('xi-v').textContent=deg.toFixed(0)+'°'; refresh(); }
+  else if(panStart){ CX=panStart[2]+(mx-panStart[0]); CY=panStart[3]+(my-panStart[1]); refresh(); }
+  else cv.style.cursor=pick(mx,my)?'pointer':'crosshair'; });
+cv.addEventListener('pointerup',()=>{ drag=null; panStart=null; cv.style.cursor='crosshair'; });
+cv.addEventListener('wheel',e=>{ e.preventDefault(); const r=cv.getBoundingClientRect(), mx=e.clientX-r.left, my=e.clientY-r.top;
+  const before=s2w(mx,my); SC*=Math.exp(-e.deltaY*0.0012); SC=Math.max(12,Math.min(400,SC));
+  const after=s2w(mx,my); CX+=(after[0]-before[0])*SC; CY-=(after[1]-before[1])*SC; refresh(); },{passive:false});
+
+//---------------------------- UI ----------------------------
+function bindUI(){
+  document.querySelectorAll('.typ').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('.typ').forEach(x=>x.classList.remove('active')); b.classList.add('active');
+    S.type=b.dataset.t; resetView(); syncPreset(); refresh(); }));
+
+  document.getElementById('rs').addEventListener('change',e=>{
+    S.rs=e.target.value; setMultsFromRS(); buildMults(); resetView(); syncPreset(); refresh(); });
+
+  document.getElementById('preset').addEventListener('change',e=>applyPreset(parseInt(e.target.value,10)));
+
+  const xs=document.getElementById('xi');
+  xs.addEventListener('input',()=>{ S.xi=parseFloat(xs.value)*PI/180;
+    document.getElementById('xi-v').textContent=Math.round(parseFloat(xs.value))+'°';
+    normalizeXi(); refresh(); });
+
+  const ts=document.getElementById('t');
+  ts.addEventListener('input',()=>{ S.t=parseFloat(ts.value);
+    document.getElementById('t-v').textContent=S.t.toFixed(3); refresh(); });
+
+  document.getElementById('reset-t').addEventListener('click',()=>{ S.t=0; ts.value=0;
+    document.getElementById('t-v').textContent='0.000'; refresh(); });
+
+  document.getElementById('play').addEventListener('click',()=>{ S.playing=!S.playing;
+    document.getElementById('play').textContent=S.playing?'⏸ 停止':'▶ 再生';
+    document.getElementById('play').classList.toggle('active',S.playing);
+    if(S.playing) requestAnimationFrame(tick); });
+
+  // 焦半径の行をクリックするとその t へジャンプ
+  document.getElementById('focal-tbl').addEventListener('click',e=>{
+    const tr=e.target.closest('tr[data-t]'); if(!tr) return;
+    const v=parseFloat(tr.dataset.t); const ts=document.getElementById('t');
+    if(v<parseFloat(ts.min)||v>parseFloat(ts.max)) return;
+    S.t=v; ts.value=v; document.getElementById('t-v').textContent=v.toFixed(3); refresh(); });
+  document.getElementById('focal-tbl').style.cursor='pointer';
+
+  const opts={'opt-orbit':'orbit','opt-alcove':'alcove','opt-normal':'normal','opt-par':'par',
+              'opt-sphere':'sphere','opt-grid':'grid','opt-circle':'circle','opt-neg':'neg'};
+  for(const id in opts){ const el=document.getElementById(id);
+    el.addEventListener('change',()=>{ S.opt[opts[id]]=el.checked; refresh(); }); }
+
+  window.addEventListener('resize',resize);
+}
+let lastT=0;
+function tick(now){ if(!S.playing) return;
+  const dt=lastT?Math.min(0.05,(now-lastT)/1000):0.016; lastT=now;
+  const ts=document.getElementById('t');
+  let t=S.t+dt*1.1; const max=parseFloat(ts.max); if(t>max) t=parseFloat(ts.min);
+  S.t=t; ts.value=t; document.getElementById('t-v').textContent=t.toFixed(3);
+  refresh(); requestAnimationFrame(tick); }
+
+//---------------------------- 起動 ----------------------------
+setMultsFromRS(); buildPresets(); buildMults(); bindUI();
+resize(); resetView(); syncPreset(); refresh();
+</script>
+</body>
+</html>
