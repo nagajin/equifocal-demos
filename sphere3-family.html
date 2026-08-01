@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>S³ 内の等径超曲面族（立体射影） — 等焦部分多様体シミュレータ</title>
+<style>
+  :root {
+    --bg:#0e1116; --panel:#161b22; --panel2:#1c232d; --border:#2a323d;
+    --text:#d6dde6; --muted:#8b97a6; --accent:#4ea1ff; --accent2:#ffb454; --good:#5ad19a; --bad:#ff6b6b;
+    --c1:#ff6b6b; --c2:#c792ea;
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; padding:0; height:100%; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif; }
+  #app { display:flex; height:100vh; overflow:hidden; }
+  #stage { flex:1; position:relative; min-width:0; }
+  canvas { display:block; width:100%; height:100%; background:radial-gradient(circle at 50% 42%,#131a24 0%,#0e1116 74%); cursor:grab; }
+  canvas:active { cursor:grabbing; }
+  #sidebar { width:352px; flex:0 0 352px; background:var(--panel); border-left:1px solid var(--border);
+    overflow-y:auto; padding:16px 16px 48px; font-size:13px; }
+  h1 { font-size:16px; margin:0 0 2px; }
+  .sub { color:var(--muted); font-size:11px; margin:0 0 12px; line-height:1.55; }
+  .nav { font-size:11px; margin:0 0 12px; }
+  .nav a { color:var(--accent); text-decoration:none; }
+  .nav a:hover { text-decoration:underline; }
+  .group { background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:12px; margin-bottom:12px; }
+  .group h2 { font-size:12px; margin:0 0 10px; color:var(--accent); font-weight:600; }
+  .btn-row { display:flex; gap:6px; flex-wrap:wrap; }
+  button { background:#233040; color:var(--text); border:1px solid var(--border); border-radius:8px;
+    padding:7px 10px; font-size:12px; cursor:pointer; transition:background .12s,border-color .12s; font-family:inherit; }
+  button:hover { background:#2c3c50; border-color:#3a4a5e; }
+  button.active { background:var(--accent2); color:#2a1c05; border-color:var(--accent2); font-weight:600; }
+  button.wide { flex:1; }
+  label.row { display:flex; align-items:center; justify-content:space-between; gap:8px; margin:9px 0; }
+  label.row span.lab { color:var(--muted); flex:0 0 auto; }
+  label.row span.val { color:var(--text); font-variant-numeric:tabular-nums; min-width:58px; text-align:right; }
+  input[type=range] { flex:1; accent-color:var(--accent); min-width:0; }
+  .check { display:flex; align-items:center; gap:8px; margin:7px 0; cursor:pointer; font-size:12px; }
+  .check input { accent-color:var(--accent); width:15px; height:15px; }
+  .ro { font-variant-numeric:tabular-nums; line-height:1.75; }
+  .ro .m { display:flex; justify-content:space-between; gap:10px; }
+  .ro .m span:first-child { color:var(--muted); }
+  .ro .m.key span { color:var(--accent2); font-weight:600; }
+  .chk { text-align:center; margin-top:8px; font-weight:600; padding:5px; border-radius:7px; font-size:11px; }
+  .chk.ok { background:rgba(90,209,154,.12); color:var(--good); }
+  .chk.min { background:rgba(255,180,84,.14); color:var(--accent2); }
+  .swatch { display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:5px; vertical-align:-1px; }
+  #status { position:absolute; top:14px; left:16px; font-size:12px; color:var(--muted);
+    background:rgba(14,17,22,.72); padding:7px 11px; border-radius:8px; border:1px solid var(--border);
+    pointer-events:none; backdrop-filter:blur(4px); line-height:1.6; }
+  #status b { color:var(--accent2); }
+  #hintbar { position:absolute; bottom:12px; left:16px; font-size:11px; color:var(--muted);
+    background:rgba(14,17,22,.6); padding:5px 9px; border-radius:7px; pointer-events:none; }
+  .hint { color:var(--muted); font-size:11px; line-height:1.6; margin-top:7px; }
+  .formula { background:#0e1116; border:1px solid var(--border); border-radius:8px; padding:8px 10px;
+    font-size:11.5px; color:var(--accent2); margin:8px 0; text-align:center; line-height:1.7; }
+  hr.sep { border:none; border-top:1px solid var(--border); margin:9px 0; }
+  code { background:#0e1116; padding:1px 5px; border-radius:4px; color:var(--accent2); font-size:11px; }
+  .note { color:var(--muted); font-size:10.5px; line-height:1.55; margin-top:6px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <div id="status"></div>
+    <div id="hintbar">ドラッグで回転 ／ ホイールでズーム</div>
+  </div>
+
+  <div id="sidebar">
+    <h1>S³ 内の等径超曲面族</h1>
+    <p class="sub">S³ 内の等径超曲面は g=1（測地超球面）と g=2（Clifford トーラス）に限ります。立体射影 S³∖{N} → ℝ³ で、平行族と<b>焦部分多様体</b>を厳密に立体表示します。</p>
+    <p class="nav">▸ <a href="index.html">デモ一覧</a> &nbsp;/&nbsp; <a href="section-arrangement.html">切断と焦超平面配置</a></p>
+
+    <div class="group">
+      <h2>族の選択</h2>
+      <div class="btn-row">
+        <button class="wide md active" data-m="clifford">g = 2（Clifford）</button>
+        <button class="wide md" data-m="sphere">g = 1（測地超球面）</button>
+      </div>
+      <div class="hint" id="mode-hint"></div>
+    </div>
+
+    <div class="group">
+      <h2>平行族のパラメータ</h2>
+      <label class="row"><span class="lab" id="par-lab">θ</span><input id="th" type="range" min="0.06" max="1.5108" step="0.0005" value="0.7854" autocomplete="off"><span class="val" id="th-v">0.785</span></label>
+      <div class="btn-row" style="margin-top:4px">
+        <button class="wide" id="play">▶ 再生</button>
+        <button class="wide" id="mid">θ = π/4</button>
+      </div>
+      <div class="hint" id="par-hint"></div>
+    </div>
+
+    <div class="group">
+      <h2>幾何量</h2>
+      <div class="ro" id="geo"></div>
+      <div class="chk" id="minchk">—</div>
+    </div>
+
+    <div class="group">
+      <h2>焦部分多様体</h2>
+      <div class="ro" id="focal"></div>
+      <div class="note" id="focal-note"></div>
+    </div>
+
+    <div class="group">
+      <h2>表示</h2>
+      <label class="check"><input type="checkbox" autocomplete="off" id="opt-focal" checked> 焦部分多様体</label>
+      <label class="check"><input type="checkbox" autocomplete="off" id="opt-foli"> 平行族（葉層として複数枚）</label>
+      <label class="check"><input type="checkbox" autocomplete="off" id="opt-hopf"> Hopf ファイバー（Villarceau 円）</label>
+      <label class="check"><input type="checkbox" autocomplete="off" id="opt-trans" checked> 半透明</label>
+      <label class="check"><input type="checkbox" autocomplete="off" id="opt-wire"> ワイヤーフレーム</label>
+      <label class="check"><input type="checkbox" autocomplete="off" id="opt-sec" checked> 切断（大円）のインセット</label>
+      <label class="check"><input type="checkbox" autocomplete="off" id="opt-fit"> 自動フィット</label>
+      <label class="row"><span class="lab">ズーム</span><input id="zoom" type="range" min="30" max="900" step="1" value="300" autocomplete="off"><span class="val" id="zoom-v">300</span></label>
+    </div>
+
+    <div class="group">
+      <h2>解説</h2>
+      <div class="hint" id="expl"></div>
+    </div>
+
+    <div class="group">
+      <h2>参考</h2>
+      <div class="hint">
+        H. F. Münzner, <i>Isoparametrische Hyperflächen in Sphären</i>, Math. Ann. <b>251</b> (1980), 57–71.<br>
+        C.-L. Terng and G. Thorbergsson, <i>Submanifold geometry in symmetric spaces</i>, J. Differential Geom. <b>42</b> (1995), 665–718.<br>
+        T. E. Cecil and P. J. Ryan, <i>Geometry of Hypersurfaces</i>, Springer, 2015, Ch. 3.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+const PI=Math.PI, TAU=2*PI;
+
+//---------------------------- 状態 ----------------------------
+const S={
+  mode:'clifford',
+  th:PI/4,                       // clifford: θ∈(0,π/2) / sphere: t∈(0,π)
+  cam:{az:0.62, el:0.42, dist:5.5, focal:300},
+  opt:{focal:true, foli:false, hopf:false, trans:true, wire:false, sec:true, fit:false},
+  playing:false, dir:1,
+};
+
+//---------------------------- 座標 ----------------------------
+let VW=800, VH=600;
+function resize(){ const r=cv.parentElement.getBoundingClientRect(), dpr=window.devicePixelRatio||1;
+  VW=r.width; VH=r.height; cv.width=Math.round(VW*dpr); cv.height=Math.round(VH*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0); refresh(); }
+
+// 方位角→仰角。返り値 [画面X, 画面上, カメラ向き奥行き]
+function rot(p){
+  const ca=Math.cos(S.cam.az), sa=Math.sin(S.cam.az);
+  const ce=Math.cos(S.cam.el), se=Math.sin(S.cam.el);
+  const x1=p[0]*ca + p[2]*sa, z1=-p[0]*sa + p[2]*ca, y1=p[1];
+  return [x1, y1*ce - z1*se, y1*se + z1*ce];
+}
+function scr(rp){ const d=S.cam.dist-rp[2]; if(d<0.2) return null;
+  const f=S.cam.focal; return [VW/2 + f*rp[0]/d, VH/2 - f*rp[1]/d]; }
+
+//---------------------------- 立体射影による厳密な像 ----------------------------
+// S³ ⊂ ℂ², 北極 N=(0,0,0,1) からの立体射影 π(x)=(x₁,x₂,x₃)/(1−x₄)。
+// 回転軸（＝第2焦部分多様体の像）を画面の「上」方向に置く。
+const CLIP=90;   // 無限遠へ飛ぶ頂点の打ち切り
+
+// g=2: M_θ = {(cosθ e^{iφ₁}, sinθ e^{iφ₂})}
+// 像は軸距離 secθ・管半径 tanθ の回転トーラス（R²−ρ²=1）。
+function cliffordPt(th,p1,p2){
+  const c=Math.cos(th), s=Math.sin(th), den=1-s*Math.sin(p2);
+  if(Math.abs(den)<1e-6) return null;
+  // π = (c cosφ₁, c sinφ₁, s cosφ₂)/den。回転軸 π₃ を「上」に持ってくる並べ替え
+  // (π₁,π₂,π₃) → (π₂,π₃,π₁) は偶置換なので向きを保つ（鏡像にならない＝Hopf 絡み目の掌性が正しい）。
+  return [c*Math.sin(p1)/den, s*Math.cos(p2)/den, c*Math.cos(p1)/den];
+}
+// g=1: M_t = {x∈S³ : ⟨x,p⟩=cos t}, p=(0,0,0,−1)。像は原点中心・半径 tan(t/2) の球面。
+function spherePt(t,u,v){
+  const R=Math.tan(t/2);
+  return [R*Math.sin(v)*Math.cos(u), R*Math.cos(v), R*Math.sin(v)*Math.sin(u)];
+}
+
+function buildMesh(param,nu,nv){
+  const V=[], Q=[], f = S.mode==='clifford' ? cliffordPt : spherePt;
+  const uMax = S.mode==='clifford' ? TAU : TAU;
+  const vMax = S.mode==='clifford' ? TAU : PI;
+  for(let i=0;i<nu;i++){ const u=uMax*i/nu;
+    for(let j=0;j<=nv;j++){ const v=vMax*j/nv;
+      const p=f(param,u,v);
+      V.push(p && Math.hypot(p[0],p[1],p[2])<CLIP ? p : null); } }
+  const id=(i,j)=>((i%nu)*(nv+1)+j);
+  for(let i=0;i<nu;i++) for(let j=0;j<nv;j++){
+    const a=id(i,j), b=id(i+1,j), c=id(i+1,j+1), d=id(i,j+1);
+    if(V[a]&&V[b]&&V[c]&&V[d]) Q.push([a,b,c,d]); }
+  return {V,Q};
+}
+
+// Hopf ファイバー：(z₁,z₂) ↦ (z₁e^{is}, z₂e^{is})。トーラス上の (1,1) 曲線＝Villarceau 円。
+function hopfFiber(th,off,n){
+  const pts=[]; for(let k=0;k<=n;k++){ const s=TAU*k/n; const p=cliffordPt(th,s,s+off);
+    pts.push(p && Math.hypot(p[0],p[1],p[2])<CLIP ? p : null); } return pts;
+}
+
+//---------------------------- 描画プリミティブ ----------------------------
+function addQuads(prims,mesh,col,alpha){
+  const RV=mesh.V.map(p=>p?rot(p):null);
+  for(const q of mesh.Q){
+    const A=RV[q[0]],B=RV[q[1]],C=RV[q[2]],D=RV[q[3]];
+    const ux=B[0]-A[0],uy=B[1]-A[1],uz=B[2]-A[2];
+    const vx=D[0]-A[0],vy=D[1]-A[1],vz=D[2]-A[2];
+    let nx=uy*vz-uz*vy, ny=uz*vx-ux*vz, nz=ux*vy-uy*vx;
+    const nl=Math.hypot(nx,ny,nz)||1; nx/=nl; ny/=nl; nz/=nl;
+    if(nz<=0 && !S.opt.trans && !S.opt.wire) continue;
+    let lam=nx*L[0]+ny*L[1]+nz*L[2];
+    if(S.opt.trans) lam=Math.abs(lam);          // 半透明時は裏面も明るく
+    prims.push({t:'q', z:(A[2]+B[2]+C[2]+D[2])/4, p:[A,B,C,D], sh:0.30+0.70*Math.max(0,lam), col, a:alpha});
+  }
+}
+function addPolyline(prims,pts,col,w,alpha,closed){
+  const R=pts.map(p=>p?rot(p):null);
+  const n=R.length;
+  for(let i=0;i+1<n;i++){ const A=R[i],B=R[i+1]; if(!A||!B) continue;
+    prims.push({t:'s', z:(A[2]+B[2])/2, p:[A,B], col, w, a:alpha}); }
+  if(closed&&R[0]&&R[n-1]) prims.push({t:'s', z:(R[0][2]+R[n-1][2])/2, p:[R[n-1],R[0]], col, w, a:alpha});
+}
+function circlePts(r,n){ const pts=[];
+  for(let k=0;k<=n;k++){ const a=TAU*k/n; pts.push([r*Math.cos(a),0,r*Math.sin(a)]); } return pts; }
+// 回転軸（無限遠を通る大円の像）。長い 1 本の線分だとニアクリップで丸ごと落ちるので細かく刻む。
+function axisPts(half,n){ const pts=[];
+  for(let k=0;k<=n;k++) pts.push([0, -half+2*half*k/n, 0]); return pts; }
+
+// 光源（カメラ空間）
+const L=(()=>{const v=[0.38,0.55,0.74], l=Math.hypot(v[0],v[1],v[2]);return [v[0]/l,v[1]/l,v[2]/l];})();
+
+//---------------------------- 描画 ----------------------------
+function autoFit(){
+  if(!S.opt.fit) return;
+  const ext = S.mode==='clifford'
+    ? 1/Math.cos(S.th)+Math.tan(S.th)          // secθ + tanθ（像の最大半径）
+    : Math.tan(S.th/2);
+  // 画面半径 ≈ focal·ext/dist を min(VW,VH) の 0.20 倍に合わせる
+  S.cam.focal = Math.max(30, Math.min(900, 0.20*Math.min(VW,VH)*S.cam.dist/Math.max(1.1,ext)));
+  const z=document.getElementById('zoom'); z.value=Math.round(S.cam.focal);
+  document.getElementById('zoom-v').textContent=Math.round(S.cam.focal);
+}
+
+function draw(){
+  ctx.clearRect(0,0,VW,VH);
+  autoFit();
+  const prims=[];
+  const foli=S.opt.foli;
+  const nu = S.mode==='clifford' ? (foli?44:104) : (foli?36:72);
+  const nv = S.mode==='clifford' ? (foli?24:52)  : (foli?20:40);
+
+  // 平行族（葉層）
+  if(foli){
+    // 端まで取ると外側の葉が画面を覆うので、像が視野に収まる帯に絞る
+    const lo = S.mode==='clifford'?0.20:0.35, hi = S.mode==='clifford'?1.05:2.10;
+    const K=5;
+    for(let k=0;k<K;k++){ const p=lo+(hi-lo)*(k+0.5)/K;
+      if(Math.abs(p-S.th)<1e-6) continue;
+      addQuads(prims, buildMesh(p,nu,nv), [92,128,178], 0.22); }
+  }
+  // 現在の超曲面
+  addQuads(prims, buildMesh(S.th,nu,nv), [96,158,214], S.opt.trans?0.42:1.0);
+
+  // Hopf ファイバー（Villarceau 円）
+  if(S.opt.hopf && S.mode==='clifford'){
+    for(let k=0;k<8;k++) addPolyline(prims, hopfFiber(S.th, TAU*k/8, 160), [255,180,84], 1.7, 0.95, false);
+  }
+
+  // 焦部分多様体
+  if(S.opt.focal){
+    if(S.mode==='clifford'){
+      addPolyline(prims, circlePts(1,180),   [255,107,107], 3.0, 1, true);   // C₁ : 単位円
+      addPolyline(prims, axisPts(24,160),    [199,146,234], 3.0, 1, false);  // C₂ : 回転軸（無限遠を通る大円）
+    } else {
+      prims.push({t:'p', z:rot([0,0,0])[2], p:[rot([0,0,0])], col:[255,107,107], r:6, a:1});
+    }
+  }
+
+  // 奥から手前へ
+  prims.sort((a,b)=>a.z-b.z);
+  for(const pr of prims){
+    if(pr.t==='q'){
+      const P=pr.p.map(scr); if(P.some(p=>!p)) continue;
+      const sh=pr.sh;
+      ctx.globalAlpha=pr.a;
+      ctx.beginPath(); ctx.moveTo(P[0][0],P[0][1]);
+      for(let i=1;i<4;i++) ctx.lineTo(P[i][0],P[i][1]);
+      ctx.closePath();
+      if(S.opt.wire){ ctx.strokeStyle='rgba(120,170,230,0.5)'; ctx.lineWidth=0.6; ctx.stroke(); }
+      else { const f=`rgb(${(pr.col[0]*sh)|0},${(pr.col[1]*sh)|0},${(pr.col[2]*sh)|0})`;
+        ctx.fillStyle=f; ctx.fill();
+        // 不透明時のみ隙間防止の縁取り。半透明だと縁が二重に乗って格子状の筋になる。
+        if(pr.a>=0.999){ ctx.strokeStyle=f; ctx.lineWidth=0.5; ctx.stroke(); } }
+    } else if(pr.t==='s'){
+      const A=scr(pr.p[0]), B=scr(pr.p[1]); if(!A||!B) continue;
+      ctx.globalAlpha=pr.a; ctx.strokeStyle=`rgb(${pr.col[0]},${pr.col[1]},${pr.col[2]})`; ctx.lineWidth=pr.w;
+      ctx.beginPath(); ctx.moveTo(A[0],A[1]); ctx.lineTo(B[0],B[1]); ctx.stroke();
+    } else {
+      const A=scr(pr.p[0]); if(!A) continue;
+      ctx.globalAlpha=pr.a; ctx.fillStyle=`rgb(${pr.col[0]},${pr.col[1]},${pr.col[2]})`;
+      ctx.beginPath(); ctx.arc(A[0],A[1],pr.r,0,TAU); ctx.fill();
+    }
+  }
+  ctx.globalAlpha=1;
+  if(S.opt.sec) drawSection();
+}
+
+// 切断（法測地線＝大円、長さ 2π）のインセット。section-arrangement.html の r=1 の絵と同じ読み方。
+function drawSection(){
+  const cx=VW-112, cy=VH-152, R=72;
+  const g = S.mode==='clifford'?2:1;
+  ctx.strokeStyle='rgba(139,151,166,0.65)'; ctx.lineWidth=1.4;
+  ctx.beginPath(); ctx.arc(cx,cy,R,0,TAU); ctx.stroke();
+  // 焦点：2g 個、間隔 π/g
+  for(let k=0;k<2*g;k++){ const a=PI*k/g;
+    const col = (k%2===0)?'#ff6b6b':'#c792ea';
+    const p=[cx+R*Math.cos(a), cy-R*Math.sin(a)];
+    ctx.fillStyle=col; ctx.beginPath(); ctx.arc(p[0],p[1],5,0,TAU); ctx.fill(); }
+  // M∩Σ：正則点の Weyl 軌道（2g 個）
+  const th=S.th;
+  const orb = g===2 ? [th,-th,PI-th,PI+th] : [th,-th];
+  for(const a of orb){ const p=[cx+R*Math.cos(a), cy-R*Math.sin(a)];
+    ctx.fillStyle='rgba(214,221,230,0.95)'; ctx.beginPath(); ctx.arc(p[0],p[1],3.6,0,TAU); ctx.fill(); }
+  // 現在位置
+  const p0=[cx+R*Math.cos(th), cy-R*Math.sin(th)];
+  ctx.strokeStyle='#5ad19a'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.arc(p0[0],p0[1],7,0,TAU); ctx.stroke();
+  ctx.fillStyle='rgba(139,151,166,0.9)'; ctx.font='11px -apple-system,sans-serif'; ctx.textAlign='center';
+  ctx.fillText('切断 Σ（大円，長さ 2π）', cx, cy+R+20);
+  ctx.fillText('焦点 '+(2*g)+' 個・間隔 '+(g===1?'π':'π/'+g), cx, cy+R+35);
+  ctx.textAlign='left';
+}
+
+//---------------------------- 読み出し ----------------------------
+const f3=v=>(Math.abs(v)<5e-4?0:v).toFixed(3);
+function fmtPi(v){ if(Math.abs(v)<1e-9) return '0';
+  for(const d of [1,2,3,4,6]){ const p=v*d/PI;
+    if(Math.abs(p-Math.round(p))<1e-7){ const r=Math.round(p), a=Math.abs(r);
+      return (r<0?'−':'')+(a===1?'π':a+'π')+(d===1?'':'/'+d); } }
+  return v.toFixed(3); }
+// π の簡単な有理倍のときだけ π 表記を併記する
+function dist(v){ const s=fmtPi(v), d=f3(v); return s===d ? d : s+' ＝ '+d; }
+
+function update(){
+  const id=s=>document.getElementById(s);
+  const th=S.th, cl=(S.mode==='clifford');
+  id('par-lab').innerHTML = cl?'θ':'t';
+  id('th-v').textContent=f3(th);
+
+  if(cl){
+    const l1=1/Math.tan(th), l2=-Math.tan(th), H=l1+l2;
+    const R=1/Math.cos(th), rho=Math.tan(th);
+    id('geo').innerHTML=
+       '<div class="m"><span>主曲率 λ₁ = cot θ（重複度 1）</span><span>'+f3(l1)+'</span></div>'
+      +'<div class="m"><span>主曲率 λ₂ = −tan θ（重複度 1）</span><span>'+f3(l2)+'</span></div>'
+      +'<div class="m key"><span>平均曲率 H = 2cot 2θ</span><span>'+f3(H)+'</span></div>'
+      +'<hr class="sep">'
+      +'<div class="m"><span>像の軸距離 R = sec θ</span><span>'+f3(R)+'</span></div>'
+      +'<div class="m"><span>像の管半径 ρ = tan θ</span><span>'+f3(rho)+'</span></div>'
+      +'<div class="m"><span>R² − ρ²</span><span>'+f3(R*R-rho*rho)+'</span></div>';
+    const mn=Math.abs(H)<2e-3;
+    id('minchk').className='chk '+(mn?'min':'ok');
+    id('minchk').textContent = mn ? '✓ θ = π/4：Clifford トーラス（極小 H = 0）'
+                                  : '✓ R² − ρ² = 1（立体射影の像が満たす関係）';
+    id('focal').innerHTML=
+       '<div class="m"><span><span class="swatch" style="background:var(--c1)"></span>C₁ = {(e^{iφ},0)}</span><span>距離 '+dist(th)+'</span></div>'
+      +'<div class="m"><span><span class="swatch" style="background:var(--c2)"></span>C₂ = {(0,e^{iφ})}</span><span>距離 '+dist(PI/2-th)+'</span></div>'
+      +'<div class="m key"><span>距離の和</span><span>'+fmtPi(PI/2)+'</span></div>'
+      +'<div class="m"><span>次元降下</span><span>2 → 1（各 m=1）</span></div>';
+    id('focal-note').innerHTML='どちらの焦部分多様体も大円で、互いに <b>Hopf 絡み目</b>をなす。C₂ は立体射影の中心 N を通るので像は<b>直線（回転軸）</b>になる。M<sub>θ</sub> は θ→0 で C₁ に、θ→π/2 で C₂ に退化する。';
+    id('par-hint').innerHTML='θ は C₁ からの距離。M<sub>θ</sub> = {(cos θ·e<sup>iφ₁</sup>, sin θ·e<sup>iφ₂</sup>)} が S³ を葉層化する。';
+  } else {
+    const l=1/Math.tan(th), H=2*l;
+    id('geo').innerHTML=
+       '<div class="m"><span>主曲率 λ = cot t（重複度 2）</span><span>'+f3(l)+'</span></div>'
+      +'<div class="m key"><span>平均曲率 H = 2cot t</span><span>'+f3(H)+'</span></div>'
+      +'<hr class="sep">'
+      +'<div class="m"><span>像の半径 tan(t/2)</span><span>'+f3(Math.tan(th/2))+'</span></div>';
+    id('minchk').className='chk '+(Math.abs(th-PI/2)<2e-3?'min':'ok');
+    id('minchk').textContent = Math.abs(th-PI/2)<2e-3 ? '✓ t = π/2：全測地的な大球面（H = 0）'
+                                                      : '✓ g = 1：主曲率は 1 つ（臍的）';
+    id('focal').innerHTML=
+       '<div class="m"><span><span class="swatch" style="background:var(--c1)"></span>極 p（原点に射影）</span><span>距離 '+f3(th)+'</span></div>'
+      +'<div class="m"><span><span class="swatch" style="background:var(--c2)"></span>対蹠点 −p（＝射影中心 N）</span><span>距離 '+f3(PI-th)+'</span></div>'
+      +'<div class="m key"><span>距離の和</span><span>'+fmtPi(PI)+'</span></div>'
+      +'<div class="m"><span>次元降下</span><span>2 → 0（m=2）</span></div>';
+    id('focal-note').innerHTML='焦部分多様体は 2 点（極と対蹠点）。ここでは対蹠点を立体射影の中心にとったので、その像は<b>無限遠</b>にある（画面には出ない）。';
+    id('par-hint').innerHTML='t は極 p からの距離。M<sub>t</sub> = {x∈S³ : ⟨x,p⟩ = cos t} は測地超球面で、像は原点中心の同心球面。';
+  }
+
+  const g=cl?2:1;
+  id('status').innerHTML='<b>'+(cl?'g = 2（Clifford トーラス族）':'g = 1（測地超球面族）')+'</b>'
+    +'<br>S³ ⊂ ℂ² を立体射影 π(x) = (x₁,x₂,x₃)/(1−x₄) で ℝ³ へ'
+    +'<br>切断上の焦点 <b>'+(2*g)+'</b> 個・間隔 <b>'+(g===1?'π':'π/'+g)+'</b>　dim M = <b>2</b>';
+
+  id('mode-hint').innerHTML = cl
+    ? 'Cartan–Münzner 多項式 F = |z₁|²−|z₂|²（2 次）。F = cos 2θ が等径関数で、g=2 の唯一の型。'
+    : '極からの距離が等径関数。主曲率は 1 つだけ（全臍的）で g=1。';
+
+  id('expl').innerHTML = cl
+    ? '<b>厳密な像</b>：M<sub>θ</sub> の立体射影像は回転軸からの距離 R = sec θ、管半径 ρ = tan θ の<b>回転トーラス</b>で、常に R² − ρ² = 1 を満たす（画面右の数値で確認できる）。'
+      +'<hr class="sep"><b>焦部分多様体</b>：θ → 0 で管がつぶれて単位円 C₁ に、θ → π/2 で無限に膨らんで回転軸 C₂ に退化する。どちらも大円で、2 次元の M から 1 次元へ落ちる（重複度 m=1 が 1 枚ずつ効く）。'
+      +'<hr class="sep"><b>Hopf ファイバー</b>：(z₁,z₂) ↦ (z₁e<sup>is</sup>, z₂e<sup>is</sup>) の軌道は M<sub>θ</sub> 上の (1,1) 曲線で、像は<b>Villarceau 円</b>。C₁ と C₂ 自身も Hopf ファイバーであり、2 本は Hopf 絡み目をなす。'
+      +'<hr class="sep"><b>切断との対応</b>：右下のインセットは法測地線（長さ 2π の大円）。焦点が 4 = 2g 個、間隔 π/2 = π/g で並び、M∩Σ の 4 点と交互になる。これは <a href="section-arrangement.html" style="color:var(--accent)">切断と焦超平面配置</a> の A₁×A₁（ユークリッド型・m=(1,1)）を球面に制限した絵にほかならない。'
+    : '<b>厳密な像</b>：極 p を立体射影の中心の対蹠点にとると、測地超球面 M<sub>t</sub> の像は原点中心・半径 tan(t/2) の<b>同心球面</b>になる。'
+      +'<hr class="sep"><b>焦部分多様体</b>：t → 0 で 1 点（極 p、原点）へ、t → π でもう 1 点（対蹠点、ここでは無限遠）へ退化する。2 次元から 0 次元へ落ちるので重複度は m = 2。'
+      +'<hr class="sep"><b>切断との対応</b>：切断上の焦点は 2 = 2g 個、間隔 π = π/g。g=1 なので主曲率は 1 つで、超曲面は全臍的。';
+}
+function refresh(){ draw(); update(); }
+
+//---------------------------- 操作 ----------------------------
+let drag=null;
+cv.addEventListener('pointerdown',e=>{ drag=[e.clientX,e.clientY,S.cam.az,S.cam.el]; cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointermove',e=>{ if(!drag) return;
+  S.cam.az=drag[2]+(e.clientX-drag[0])*0.008;
+  S.cam.el=Math.max(-1.45,Math.min(1.45, drag[3]+(e.clientY-drag[1])*0.008));
+  refresh(); });
+cv.addEventListener('pointerup',()=>{ drag=null; });
+cv.addEventListener('wheel',e=>{ e.preventDefault();
+  S.opt.fit=false; document.getElementById('opt-fit').checked=false;
+  S.cam.focal=Math.max(30,Math.min(900, S.cam.focal*Math.exp(-e.deltaY*0.0012)));
+  const z=document.getElementById('zoom'); z.value=Math.round(S.cam.focal);
+  document.getElementById('zoom-v').textContent=Math.round(S.cam.focal); refresh(); },{passive:false});
+
+function setMode(m){
+  S.mode=m;
+  document.querySelectorAll('.md').forEach(b=>b.classList.toggle('active',b.dataset.m===m));
+  const t=document.getElementById('th');
+  if(m==='clifford'){ t.min=0.06; t.max=(PI/2-0.06).toFixed(4); S.th=PI/4; }
+  else { t.min=0.12; t.max=(PI-0.12).toFixed(4); S.th=PI/2; }
+  t.value=S.th; document.getElementById('mid').textContent = m==='clifford'?'θ = π/4':'t = π/2';
+  refresh();
+}
+
+function bindUI(){
+  document.querySelectorAll('.md').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.m)));
+  const t=document.getElementById('th');
+  t.addEventListener('input',()=>{ S.th=parseFloat(t.value); refresh(); });
+  document.getElementById('mid').addEventListener('click',()=>{
+    S.th = S.mode==='clifford'?PI/4:PI/2; t.value=S.th; refresh(); });
+  document.getElementById('play').addEventListener('click',()=>{ S.playing=!S.playing;
+    const b=document.getElementById('play');
+    b.textContent=S.playing?'⏸ 停止':'▶ 再生'; b.classList.toggle('active',S.playing);
+    if(S.playing){ last=0; requestAnimationFrame(tick); } });
+  const z=document.getElementById('zoom');
+  z.addEventListener('input',()=>{ S.opt.fit=false; document.getElementById('opt-fit').checked=false;
+    S.cam.focal=parseFloat(z.value); document.getElementById('zoom-v').textContent=z.value; refresh(); });
+  const opts={'opt-focal':'focal','opt-foli':'foli','opt-hopf':'hopf','opt-trans':'trans',
+              'opt-wire':'wire','opt-sec':'sec','opt-fit':'fit'};
+  for(const id in opts){ const el=document.getElementById(id);
+    el.addEventListener('change',()=>{ S.opt[opts[id]]=el.checked; refresh(); }); }
+  window.addEventListener('resize',resize);
+}
+let last=0;
+function tick(now){ if(!S.playing) return;
+  const dt=last?Math.min(0.05,(now-last)/1000):0.016; last=now;
+  const t=document.getElementById('th'), lo=parseFloat(t.min), hi=parseFloat(t.max);
+  let v=S.th+S.dir*dt*0.34;
+  if(v>hi){ v=hi; S.dir=-1; } if(v<lo){ v=lo; S.dir=1; }
+  S.th=v; t.value=v; refresh(); requestAnimationFrame(tick); }
+
+//---------------------------- 起動 ----------------------------
+bindUI(); resize(); setMode('clifford');
+</script>
+</body>
+</html>
